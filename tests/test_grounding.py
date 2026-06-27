@@ -23,6 +23,12 @@ def test_extract_cited_sources_finds_pdf_filenames():
     assert extract_cited_sources(answer) == {"boe-mpr-may-2024.pdf"}
 
 
+def test_extract_cited_sources_does_not_capture_preceding_words():
+    answer = "According to entsoe-winter-outlook-2025-2026.pdf, adequacy is monitored."
+
+    assert extract_cited_sources(answer) == {"entsoe-winter-outlook-2025-2026.pdf"}
+
+
 def test_citation_check_passes_when_cited_source_was_retrieved():
     answer = "Ireland required monitoring (entsoe-summer-outlook-2024.pdf)."
 

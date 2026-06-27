@@ -21,3 +21,14 @@ def test_chunk_text_rejects_overlap_at_or_above_chunk_size():
 
 def test_tokenize_keeps_punctuation_as_tokens():
     assert tokenize("Bank Rate: 5.25%.") == ["Bank", "Rate", ":", "5", ".", "25", "%", "."]
+
+
+def test_chunk_text_preserves_numeric_formatting():
+    text = "Demand rose to 5.25% during winter 2025-2026 in zone PL-DE."
+
+    chunks = chunk_text(text, chunk_tokens=20, overlap_tokens=2)
+
+    assert chunks[0].text == text
+    assert "5.25%" in chunks[0].text
+    assert "2025-2026" in chunks[0].text
+    assert "PL-DE" in chunks[0].text

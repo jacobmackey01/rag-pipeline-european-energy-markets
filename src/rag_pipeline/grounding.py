@@ -6,7 +6,7 @@ from rag_pipeline.config import REFUSAL_MESSAGE
 from rag_pipeline.store import RetrievedChunk
 
 
-PDF_PATTERN = re.compile(r"[\w .-]+\.pdf", re.IGNORECASE)
+PDF_PATTERN = re.compile(r"(?<![\w.-])([\w.-]+\.pdf)(?![\w.-])", re.IGNORECASE)
 
 
 GROUNDING_INSTRUCTION = (
@@ -44,7 +44,7 @@ def build_grounded_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
 
 
 def extract_cited_sources(answer: str) -> set[str]:
-    return {match.group(0).strip() for match in PDF_PATTERN.finditer(answer)}
+    return {match.group(1).strip() for match in PDF_PATTERN.finditer(answer)}
 
 
 def citation_check(answer: str, retrieved: list[RetrievedChunk]) -> tuple[bool, str]:

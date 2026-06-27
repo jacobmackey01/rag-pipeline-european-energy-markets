@@ -45,8 +45,11 @@ VALIDATION_CASES = (
         expected_phrases=("cross-zonal", "Southeast Europe"),
     ),
     ValidationCase(
-        name="refusal_absent_cobblestone_revenue",
-        question="According to the provided documents, what was Cobblestone Energy's 2026 revenue forecast?",
+        name="refusal_plausible_absent_poland_peak_demand",
+        question=(
+            "According to the provided ENTSO-E and ACER documents, what is the "
+            "projected Winter 2025-2026 peak electricity demand for Poland in GW?"
+        ),
         must_refuse=True,
     ),
     ValidationCase(

@@ -29,6 +29,7 @@ def answer_from_context(
         model=config.llm_model,
         instructions=GROUNDING_INSTRUCTION,
         input=build_grounded_prompt(question, chunks),
+        temperature=config.llm_temperature,
         max_output_tokens=600,
     )
     answer = response.output_text.strip()
