@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=70", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag-pipeline-grounded-qa"
+version = "0.1.0"
+description = "A source-cited RAG pipeline with explicit refusal validation over central-bank and energy-market PDFs."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=0.5.23",
+    "openai>=1.90.0",
+    "pypdf>=5.1.0",
+    "sentence-transformers>=3.3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+]
+
+[project.scripts]
+rag-pipeline = "rag_pipeline.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
