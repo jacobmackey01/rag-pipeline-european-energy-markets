@@ -36,13 +36,13 @@ VALIDATION_CASES = (
         name="grounding_acer_2026_market_developments",
         question="What does ACER say about key developments in European electricity and gas markets in 2026?",
         expected_sources=("acer-gas-electricity-key-developments-2026.pdf",),
-        expected_phrases=("electricity", "gas"),
+        expected_phrases=("Russian gas imports", "LNG market", "network codes"),
     ),
     ValidationCase(
         name="grounding_acer_see_cross_zonal_capacity",
         question="What does ACER say about cross-zonal capacity and flexibility in Southeast Europe?",
         expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
-        expected_phrases=("cross-zonal", "Southeast Europe"),
+        expected_phrases=("price spikes", "Greece and Italy", "cross-zonal capacity"),
     ),
     ValidationCase(
         name="refusal_plausible_absent_poland_peak_demand",

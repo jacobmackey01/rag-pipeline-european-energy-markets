@@ -2,26 +2,31 @@
   {
     "filename": "entsoe-summer-outlook-2026.pdf",
     "title": "ENTSO-E Summer Outlook 2026",
-    "url": "https://www.entsoe.eu/Documents/SDC%20documents/seasonal/SOR2026/Report-Summer_Outlook_2026.pdf"
+    "url": "https://www.entsoe.eu/Documents/SDC%20documents/seasonal/SOR2026/Report-Summer_Outlook_2026.pdf",
+    "sha256": "a9a6027477f59da9ca545a6ccadeb42a1e9be085269e0d0f7cc0b72db9ed3c08"
   },
   {
     "filename": "entsoe-winter-outlook-2025-2026.pdf",
     "title": "ENTSO-E Winter Outlook 2025-2026",
-    "url": "https://www.entsoe.eu/Documents/SDC%20documents/seasonal/WOR2025/Winter_Outlook_2025-2026_Report.pdf"
+    "url": "https://www.entsoe.eu/Documents/SDC%20documents/seasonal/WOR2025/Winter_Outlook_2025-2026_Report.pdf",
+    "sha256": "3d191d58ddfbc731e50235a17abf64786527fdec2a2000895be7eb6ce29997a7"
   },
   {
     "filename": "acer-gas-electricity-key-developments-2026.pdf",
     "title": "ACER Key Developments in European Electricity and Gas Markets 2026",
-    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/2026-ACER-Gas-Electricity-Key-Developments.pdf"
+    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/2026-ACER-Gas-Electricity-Key-Developments.pdf",
+    "sha256": "5357647f1759c6b07e9856486aaa86b953e4f8b8849cbab5286f133a2f8053e5"
   },
   {
     "filename": "acer-see-cross-zonal-capacity-flexibility-2026.pdf",
     "title": "ACER Increasing Cross-Zonal Capacity and System Flexibility in Southeast Europe 2026",
-    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/ACER-Monitoring-Report-Increasing-SEE-cross-zonal-capacity-and-flexibility-2026.pdf"
+    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/ACER-Monitoring-Report-Increasing-SEE-cross-zonal-capacity-and-flexibility-2026.pdf",
+    "sha256": "240745eed7475d19af5710be12da1c9eb4eff77b8ea9c7f8396da09d4e6006f8"
   },
   {
     "filename": "acer-gas-key-developments-winter-2025-2026.pdf",
     "title": "ACER Key Developments in European Gas Wholesale Markets Winter 2025-2026",
-    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/2026-ACER-Gas-Key-Developments-winter.pdf"
+    "url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/2026-ACER-Gas-Key-Developments-winter.pdf",
+    "sha256": "0216a5bcc01b6f217927db9342b9fdb427031683c10d70305d2635d99b2679c3"
   }
 ]

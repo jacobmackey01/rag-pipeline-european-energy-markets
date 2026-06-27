@@ -2,4 +2,5 @@ chromadb>=0.5.23
 openai>=1.90.0
 pypdf>=5.1.0
 sentence-transformers>=3.3.1
+transformers>=4.41
 pytest>=8.3.0
