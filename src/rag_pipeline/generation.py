@@ -1,5 +1,4 @@
-"""OpenAI generation step for answering from retrieved context only."""
-
+# OpenAI generation step for answering from retrieved context only.
 from __future__ import annotations
 
 import os
@@ -11,12 +10,12 @@ from rag_pipeline.grounding import GROUNDING_INSTRUCTION, build_grounded_prompt,
 from rag_pipeline.store import RetrievedChunk
 
 
+# Generate a grounded answer and run a post-hoc citation integrity check.
 def answer_from_context(
     config: AppConfig,
     question: str,
     chunks: list[RetrievedChunk],
 ) -> dict[str, object]:
-    """Generate a grounded answer and run a post-hoc citation integrity check."""
     if not chunks:
         # With no retrieved evidence, refuse without spending an LLM call.
         return {

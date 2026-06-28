@@ -1,5 +1,4 @@
-"""Command-line interface for corpus setup, retrieval, Q&A, and validation."""
-
+# Command-line interface for corpus setup, retrieval, Q&A, and validation.
 from __future__ import annotations
 
 import argparse
@@ -13,16 +12,16 @@ from rag_pipeline.store import retrieve
 from rag_pipeline.validation import run_validation, write_validation_results
 
 
+# Print compact retrieval previews without flooding the terminal.
 def _print_chunks(chunks) -> None:
-    """Print compact retrieval previews without flooding the terminal."""
     for index, chunk in enumerate(chunks, start=1):
         print(f"\n[{index}] {chunk.citation_label} | distance={chunk.distance:.4f}")
         preview = chunk.text.replace("\n", " ")
         print(preview[:700] + ("..." if len(preview) > 700 else ""))
 
 
+# Parse CLI arguments and dispatch to the selected pipeline operation.
 def main() -> None:
-    """Parse CLI arguments and dispatch to the selected pipeline operation."""
     parser = argparse.ArgumentParser(description="Grounded RAG over public PDFs.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 

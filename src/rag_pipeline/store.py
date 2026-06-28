@@ -1,5 +1,4 @@
-"""Chroma vector-store operations for indexing and retrieval."""
-
+# Chroma vector-store operations for indexing and retrieval.
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,10 +11,9 @@ from rag_pipeline.documents import DocumentChunk
 from rag_pipeline.embeddings import LocalEmbedder
 
 
+# One chunk returned from vector search with its source metadata.
 @dataclass(frozen=True)
 class RetrievedChunk:
-    """One chunk returned from vector search with its source metadata."""
-
     id: str
     text: str
     source: str
@@ -26,20 +24,20 @@ class RetrievedChunk:
     page_end: int
     distance: float
 
+    # Human-readable label used in CLI retrieval previews.
     @property
     def citation_label(self) -> str:
-        """Human-readable label used in CLI retrieval previews."""
         return f"{self.source}, page {self.page_start}, chunk {self.chunk_index}"
 
 
+# Create a persistent Chroma client rooted in data/chroma.
 def get_client(config: AppConfig):
-    """Create a persistent Chroma client rooted in data/chroma."""
     config.chroma_dir.mkdir(parents=True, exist_ok=True)
     return chromadb.PersistentClient(path=str(config.chroma_dir))
 
 
+# Open the chunk collection using cosine distance for semantic similarity.
 def get_collection(config: AppConfig):
-    """Open the chunk collection using cosine distance for semantic similarity."""
     client = get_client(config)
     return client.get_or_create_collection(
         name=config.collection_name,
@@ -47,8 +45,8 @@ def get_collection(config: AppConfig):
     )
 
 
+# Drop the existing collection so ingestion can rebuild it from scratch.
 def reset_collection(config: AppConfig) -> None:
-    """Drop the existing collection so ingestion can rebuild it from scratch."""
     client = get_client(config)
     try:
         client.delete_collection(config.collection_name)
@@ -56,13 +54,13 @@ def reset_collection(config: AppConfig) -> None:
         pass
 
 
+# Embed chunks in batches and upsert text, vectors, and metadata into Chroma.
 def index_chunks(
     config: AppConfig,
     chunks: list[DocumentChunk],
     embedder: LocalEmbedder | None = None,
     batch_size: int = 64,
 ) -> int:
-    """Embed chunks in batches and upsert text, vectors, and metadata into Chroma."""
     embedder = embedder or LocalEmbedder(config.embedding_model)
     collection = get_collection(config)
 
@@ -80,19 +78,19 @@ def index_chunks(
     return len(chunks)
 
 
+# Read Chroma metadata defensively because values can be missing or None.
 def _metadata_value(metadata: dict[str, Any], key: str, default: str | int) -> Any:
-    """Read Chroma metadata defensively because values can be missing or None."""
     value = metadata.get(key, default)
     return default if value is None else value
 
 
+# Embed a question and return the top-k nearest stored chunks.
 def retrieve(
     config: AppConfig,
     question: str,
     top_k: int = 4,
     embedder: LocalEmbedder | None = None,
 ) -> list[RetrievedChunk]:
-    """Embed a question and return the top-k nearest stored chunks."""
     embedder = embedder or LocalEmbedder(config.embedding_model)
     collection = get_collection(config)
 

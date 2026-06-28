@@ -1,5 +1,4 @@
-"""Scripted validation checks for grounding, refusal, retrieval, and citations."""
-
+# Scripted validation checks for grounding, refusal, retrieval, and citations.
 from __future__ import annotations
 
 import json
@@ -11,10 +10,9 @@ from rag_pipeline.generation import answer_from_context
 from rag_pipeline.store import RetrievedChunk, retrieve
 
 
+# One validation scenario and the assertions expected from it.
 @dataclass(frozen=True)
 class ValidationCase:
-    """One validation scenario and the assertions expected from it."""
-
     name: str
     question: str
     expected_sources: tuple[str, ...] = ()
@@ -23,10 +21,9 @@ class ValidationCase:
     generate_answer: bool = True
 
 
+# Serializable result for one validation case.
 @dataclass(frozen=True)
 class ValidationResult:
-    """Serializable result for one validation case."""
-
     name: str
     question: str
     passed: bool
@@ -68,22 +65,22 @@ VALIDATION_CASES = (
 )
 
 
+# Check whether each expected source PDF appeared in top-k retrieval.
 def _source_check(chunks: list[RetrievedChunk], expected_sources: tuple[str, ...]) -> bool:
-    """Check whether each expected source PDF appeared in top-k retrieval."""
     if not expected_sources:
         return True
     retrieved = {chunk.source for chunk in chunks}
     return all(source in retrieved for source in expected_sources)
 
 
+# Check for specific answer details, not just generic corpus words.
 def _phrase_check(answer: str, phrases: tuple[str, ...]) -> bool:
-    """Check for specific answer details, not just generic corpus words."""
     lower_answer = answer.lower()
     return all(phrase.lower() in lower_answer for phrase in phrases)
 
 
+# Run all scripted validation cases and collect structured results.
 def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
-    """Run all scripted validation cases and collect structured results."""
     results: list[ValidationResult] = []
     for case in VALIDATION_CASES:
         # Retrieval runs for every case so source quality is always visible.
@@ -127,8 +124,8 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
     return results
 
 
+# Write validation output for auditing outside the terminal.
 def write_validation_results(results: list[ValidationResult], path: Path) -> None:
-    """Write validation output for auditing outside the terminal."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps([asdict(result) for result in results], indent=2),

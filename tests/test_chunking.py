@@ -1,12 +1,12 @@
-"""Unit tests for source-preserving text chunking."""
+# Unit tests for source-preserving text chunking.
 
 import pytest
 
 from rag_pipeline.chunking import chunk_text, tokenize
 
 
+# Adjacent chunks should share the configured overlap window.
 def test_chunk_text_uses_overlap():
-    """Adjacent chunks should share the configured overlap window."""
     text = " ".join(f"token{i}" for i in range(12))
 
     chunks = chunk_text(text, chunk_tokens=5, overlap_tokens=2)
@@ -17,19 +17,19 @@ def test_chunk_text_uses_overlap():
     assert chunks[-1].text == "token9 token10 token11"
 
 
+# Overlap equal to chunk size would make the chunking loop non-progressing.
 def test_chunk_text_rejects_overlap_at_or_above_chunk_size():
-    """Overlap equal to chunk size would make the chunking loop non-progressing."""
     with pytest.raises(ValueError):
         chunk_text("some text", chunk_tokens=10, overlap_tokens=10)
 
 
+# The fallback tokenizer separates words, numbers, and punctuation.
 def test_tokenize_keeps_punctuation_as_tokens():
-    """The fallback tokenizer separates words, numbers, and punctuation."""
     assert tokenize("Bank Rate: 5.25%.") == ["Bank", "Rate", ":", "5", ".", "25", "%", "."]
 
 
+# Chunks slice original text, so market figures and zone names stay intact.
 def test_chunk_text_preserves_numeric_formatting():
-    """Chunks slice original text, so market figures and zone names stay intact."""
     text = "Demand rose to 5.25% during winter 2025-2026 in zone PL-DE."
 
     chunks = chunk_text(text, chunk_tokens=20, overlap_tokens=2)

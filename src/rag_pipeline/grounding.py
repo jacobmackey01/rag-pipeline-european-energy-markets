@@ -1,5 +1,4 @@
-"""Prompt construction and citation validation for grounded answers."""
-
+# Prompt construction and citation validation for grounded answers.
 from __future__ import annotations
 
 import re
@@ -20,8 +19,8 @@ GROUNDING_INSTRUCTION = (
 )
 
 
+# Render retrieved chunks with source tags before passing them to the LLM.
 def format_context(chunks: list[RetrievedChunk]) -> str:
-    """Render retrieved chunks with source tags before passing them to the LLM."""
     parts: list[str] = []
     for index, chunk in enumerate(chunks, start=1):
         parts.append(
@@ -39,8 +38,8 @@ def format_context(chunks: list[RetrievedChunk]) -> str:
     return "\n\n---\n\n".join(parts)
 
 
+# Combine retrieved context and the user's question into one prompt.
 def build_grounded_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
-    """Combine retrieved context and the user's question into one prompt."""
     return (
         "Use the context below to answer the question.\n\n"
         f"CONTEXT:\n{format_context(chunks)}\n\n"
@@ -49,13 +48,13 @@ def build_grounded_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
     )
 
 
+# Return every PDF filename cited by the model answer.
 def extract_cited_sources(answer: str) -> set[str]:
-    """Return every PDF filename cited by the model answer."""
     return {match.group(1).strip() for match in PDF_PATTERN.finditer(answer)}
 
 
+# Ensure cited filenames came from the chunks the model was given.
 def citation_check(answer: str, retrieved: list[RetrievedChunk]) -> tuple[bool, str]:
-    """Ensure cited filenames came from the chunks the model was given."""
     if answer.strip() == REFUSAL_MESSAGE:
         return True, "Refusal answer does not require citations."
 
