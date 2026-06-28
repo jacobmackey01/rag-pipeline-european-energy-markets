@@ -89,11 +89,3 @@ Validation cases:
 - `retrieval_quality_entsoe_winter_outlook`: checks that the expected Winter Outlook PDF appears in the top-k chunks. A related Summer Outlook chunk can rank highly because that report also discusses preparation for winter 2025-2026, which is a useful retrieval-quality nuance to know.
 
 Detailed local validation output is written to `validation/results.json`, which is ignored by Git.
-
-## Cobblestone 150-Word Answer Draft
-
-Problem: answering questions from European power and gas market reports by hand is slow and error-prone. I built a RAG pipeline over five public ENTSO-E and ACER PDFs covering seasonal adequacy, cross-zonal capacity, and 2026 EU electricity/gas market developments. The pipeline chunks each PDF with the MiniLM tokenizer, embeds the chunks locally, stores them in ChromaDB, retrieves the top-k relevant passages for a query, and asks the OpenAI model to answer only from those passages while citing source filenames. To validate against hallucination, I set temperature to zero and added a plausible refusal test asking for Poland's projected Winter 2025-2026 peak electricity demand, which should return exactly `Not found in the provided documents.` I also return retrieved chunks with each answer, check cited filenames were actually retrieved, and verify PDF checksums.
-
-## Example CV Line
-
-Built a retrieval-augmented generation pipeline over public European energy-market PDFs from ENTSO-E and ACER using local MiniLM embeddings, ChromaDB, and source-cited OpenAI generation, with retrieval-quality checks and a refusal validation layer that returns "not found" when an answer is absent.
