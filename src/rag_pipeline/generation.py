@@ -1,3 +1,5 @@
+"""OpenAI generation step for answering from retrieved context only."""
+
 from __future__ import annotations
 
 import os
@@ -14,7 +16,9 @@ def answer_from_context(
     question: str,
     chunks: list[RetrievedChunk],
 ) -> dict[str, object]:
+    """Generate a grounded answer and run a post-hoc citation integrity check."""
     if not chunks:
+        # With no retrieved evidence, refuse without spending an LLM call.
         return {
             "answer": REFUSAL_MESSAGE,
             "citation_check": True,
@@ -25,6 +29,7 @@ def answer_from_context(
         raise RuntimeError("OPENAI_API_KEY is missing. Add it to .env.local or the environment.")
 
     client = OpenAI()
+    # Temperature is configurable but defaults to 0 for reproducible validation.
     response = client.responses.create(
         model=config.llm_model,
         instructions=GROUNDING_INSTRUCTION,
@@ -33,6 +38,8 @@ def answer_from_context(
         max_output_tokens=600,
     )
     answer = response.output_text.strip()
+
+    # This catches a model inventing or typoing a source filename it never saw.
     passed, message = citation_check(answer, chunks)
     return {
         "answer": answer,

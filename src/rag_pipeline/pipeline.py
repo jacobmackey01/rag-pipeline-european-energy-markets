@@ -1,3 +1,5 @@
+"""High-level orchestration functions used by the CLI."""
+
 from __future__ import annotations
 
 from rag_pipeline.config import AppConfig
@@ -8,6 +10,7 @@ from rag_pipeline.store import index_chunks, reset_collection, retrieve
 
 
 def build_index(config: AppConfig, reset: bool = False) -> int:
+    """Load PDF chunks and index them in Chroma."""
     if reset:
         reset_collection(config)
     chunks = load_pdf_chunks(config)
@@ -19,6 +22,7 @@ def build_index(config: AppConfig, reset: bool = False) -> int:
 
 
 def ask_question(config: AppConfig, question: str, top_k: int = 4) -> dict[str, object]:
+    """Retrieve evidence for a question, then generate a grounded answer."""
     embedder = LocalEmbedder(config.embedding_model)
     chunks = retrieve(config, question, top_k=top_k, embedder=embedder)
     result = answer_from_context(config, question, chunks)

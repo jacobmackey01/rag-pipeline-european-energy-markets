@@ -1,3 +1,5 @@
+"""Scripted validation checks for grounding, refusal, retrieval, and citations."""
+
 from __future__ import annotations
 
 import json
@@ -11,6 +13,8 @@ from rag_pipeline.store import RetrievedChunk, retrieve
 
 @dataclass(frozen=True)
 class ValidationCase:
+    """One validation scenario and the assertions expected from it."""
+
     name: str
     question: str
     expected_sources: tuple[str, ...] = ()
@@ -21,6 +25,8 @@ class ValidationCase:
 
 @dataclass(frozen=True)
 class ValidationResult:
+    """Serializable result for one validation case."""
+
     name: str
     question: str
     passed: bool
@@ -31,6 +37,7 @@ class ValidationResult:
     notes: list[str]
 
 
+# Cases are deliberately small and inspectable so failures can be explained.
 VALIDATION_CASES = (
     ValidationCase(
         name="grounding_acer_2026_market_developments",
@@ -62,6 +69,7 @@ VALIDATION_CASES = (
 
 
 def _source_check(chunks: list[RetrievedChunk], expected_sources: tuple[str, ...]) -> bool:
+    """Check whether each expected source PDF appeared in top-k retrieval."""
     if not expected_sources:
         return True
     retrieved = {chunk.source for chunk in chunks}
@@ -69,13 +77,16 @@ def _source_check(chunks: list[RetrievedChunk], expected_sources: tuple[str, ...
 
 
 def _phrase_check(answer: str, phrases: tuple[str, ...]) -> bool:
+    """Check for specific answer details, not just generic corpus words."""
     lower_answer = answer.lower()
     return all(phrase.lower() in lower_answer for phrase in phrases)
 
 
 def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
+    """Run all scripted validation cases and collect structured results."""
     results: list[ValidationResult] = []
     for case in VALIDATION_CASES:
+        # Retrieval runs for every case so source quality is always visible.
         chunks = retrieve(config, case.question, top_k=top_k)
         retrieved_sources = [chunk.source for chunk in chunks]
         retrieved_labels = [chunk.citation_label for chunk in chunks]
@@ -93,6 +104,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
                 notes.append(str(generated["citation_check_message"]))
 
             if case.must_refuse:
+                # The refusal test is exact-match by design: no hedging or citations.
                 checks["refusal_exact"] = answer.strip() == REFUSAL_MESSAGE
             else:
                 checks["expected_phrases"] = _phrase_check(answer, case.expected_phrases)
@@ -116,6 +128,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
 
 
 def write_validation_results(results: list[ValidationResult], path: Path) -> None:
+    """Write validation output for auditing outside the terminal."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         json.dumps([asdict(result) for result in results], indent=2),

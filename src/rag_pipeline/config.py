@@ -1,3 +1,10 @@
+"""Application configuration and small .env loader.
+
+The project intentionally avoids a heavy settings framework. A single frozen
+dataclass keeps paths, model names, chunk sizes, and generation settings easy to
+inspect and defend in an interview.
+"""
+
 from __future__ import annotations
 
 import os
@@ -9,6 +16,7 @@ REFUSAL_MESSAGE = "Not found in the provided documents."
 
 
 def load_env_file(path: Path) -> None:
+    """Load KEY=VALUE pairs without printing secrets or overriding env vars."""
     if not path.exists():
         return
     for raw_line in path.read_text(encoding="utf-8").splitlines():
@@ -24,6 +32,8 @@ def load_env_file(path: Path) -> None:
 
 @dataclass(frozen=True)
 class AppConfig:
+    """Runtime settings for corpus paths, embeddings, vector store, and LLM."""
+
     root_dir: Path
     sources_path: Path
     raw_dir: Path
@@ -37,7 +47,10 @@ class AppConfig:
 
     @classmethod
     def from_env(cls, root_dir: Path | None = None) -> "AppConfig":
+        """Build config from the workspace root and optional environment files."""
         root = (root_dir or Path.cwd()).resolve()
+
+        # .env.local is for machine-specific secrets; .env is a fallback.
         load_env_file(root / ".env.local")
         load_env_file(root / ".env")
 

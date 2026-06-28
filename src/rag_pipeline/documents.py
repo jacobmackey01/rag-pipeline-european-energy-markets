@@ -1,3 +1,10 @@
+"""Corpus download, checksum verification, PDF extraction, and chunk metadata.
+
+This module turns public ENTSO-E/ACER PDFs into source-traceable chunks. It
+keeps enough metadata for later citation: filename, URL, chunk index, and the
+PDF page range touched by each chunk.
+"""
+
 from __future__ import annotations
 
 import hashlib
@@ -16,6 +23,8 @@ from rag_pipeline.config import AppConfig
 
 @dataclass(frozen=True)
 class SourceDocument:
+    """One row from data/sources.json."""
+
     filename: str
     title: str
     url: str
@@ -24,6 +33,8 @@ class SourceDocument:
 
 @dataclass(frozen=True)
 class PageSpan:
+    """Character span occupied by one extracted PDF page in the combined text."""
+
     page_number: int
     start_char: int
     end_char: int
@@ -31,6 +42,8 @@ class PageSpan:
 
 @dataclass(frozen=True)
 class DocumentChunk:
+    """Chunk text plus metadata stored alongside its embedding in Chroma."""
+
     id: str
     text: str
     source: str
@@ -42,6 +55,7 @@ class DocumentChunk:
 
     @property
     def metadata(self) -> dict[str, str | int]:
+        """Flatten metadata into Chroma's supported primitive value types."""
         return {
             "source": self.source,
             "title": self.title,
@@ -53,11 +67,13 @@ class DocumentChunk:
 
 
 def load_sources(path: Path) -> list[SourceDocument]:
+    """Read the source manifest into typed records."""
     records = json.loads(path.read_text(encoding="utf-8"))
     return [SourceDocument(**record) for record in records]
 
 
 def sha256_file(path: Path) -> str:
+    """Stream a file into SHA256 so large PDFs do not need to fit in memory."""
     digest = hashlib.sha256()
     with path.open("rb") as file:
         for block in iter(lambda: file.read(1024 * 1024), b""):
@@ -66,6 +82,7 @@ def sha256_file(path: Path) -> str:
 
 
 def verify_source_file(path: Path, source: SourceDocument) -> None:
+    """Fail fast if a local PDF no longer matches the pinned manifest checksum."""
     if source.sha256 is None:
         return
     actual = sha256_file(path)
@@ -77,6 +94,7 @@ def verify_source_file(path: Path, source: SourceDocument) -> None:
 
 
 def download_sources(config: AppConfig, overwrite: bool = False) -> list[Path]:
+    """Download or reuse the manifest PDFs, then verify their checksums."""
     config.raw_dir.mkdir(parents=True, exist_ok=True)
     downloaded: list[Path] = []
     for source in load_sources(config.sources_path):
@@ -94,6 +112,7 @@ def download_sources(config: AppConfig, overwrite: bool = False) -> list[Path]:
 
 
 def _load_chunk_tokenizer(model_name: str) -> Any:
+    """Load a fast Hugging Face tokenizer so chunking can use real offsets."""
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
@@ -103,6 +122,7 @@ def _load_chunk_tokenizer(model_name: str) -> Any:
 
 
 def _clean_pdf_text(text: str) -> str:
+    """Normalize noisy PDF extraction whitespace without changing wording."""
     text = text.replace("\x00", " ")
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -110,6 +130,7 @@ def _clean_pdf_text(text: str) -> str:
 
 
 def _extract_pdf_text_with_pages(reader: PdfReader) -> tuple[str, list[PageSpan]]:
+    """Extract all pages into one text string and remember each page span."""
     parts: list[str] = []
     page_spans: list[PageSpan] = []
     cursor = 0
@@ -118,6 +139,8 @@ def _extract_pdf_text_with_pages(reader: PdfReader) -> tuple[str, list[PageSpan]
         page_text = _clean_pdf_text(page.extract_text() or "")
         if not page_text:
             continue
+
+        # Separate pages so text does not run together when chunks span pages.
         if parts:
             parts.append("\n\n")
             cursor += 2
@@ -132,6 +155,7 @@ def _extract_pdf_text_with_pages(reader: PdfReader) -> tuple[str, list[PageSpan]
 
 
 def _page_range_for_chunk(page_spans: list[PageSpan], chunk: TextChunk) -> tuple[int, int]:
+    """Map a chunk's character span back to the PDF pages it overlaps."""
     pages = [
         span.page_number
         for span in page_spans
@@ -148,6 +172,7 @@ def _chunk_document_text(
     overlap_tokens: int,
     tokenizer: Any | None,
 ) -> list[TextChunk]:
+    """Choose tokenizer-aware chunking for ingestion, with regex fallback for tests."""
     if tokenizer is None:
         return chunk_text(text, chunk_tokens, overlap_tokens)
     return chunk_text_with_tokenizer(text, tokenizer, chunk_tokens, overlap_tokens)
@@ -160,6 +185,7 @@ def extract_chunks_from_pdf(
     overlap_tokens: int,
     tokenizer: Any | None = None,
 ) -> list[DocumentChunk]:
+    """Extract a PDF into source-citable chunks."""
     reader = PdfReader(str(path))
     full_text, page_spans = _extract_pdf_text_with_pages(reader)
     chunks: list[DocumentChunk] = []
@@ -173,6 +199,7 @@ def extract_chunks_from_pdf(
         overlap_tokens,
         tokenizer,
     ):
+        # A chunk can span pages, so metadata stores page_start and page_end.
         page_start, page_end = _page_range_for_chunk(page_spans, local_chunk)
         chunks.append(
             DocumentChunk(
@@ -191,6 +218,7 @@ def extract_chunks_from_pdf(
 
 
 def load_pdf_chunks(config: AppConfig) -> list[DocumentChunk]:
+    """Load all manifest PDFs from data/raw and return chunks ready to index."""
     sources = {source.filename: source for source in load_sources(config.sources_path)}
     tokenizer = _load_chunk_tokenizer(config.embedding_model)
     chunks: list[DocumentChunk] = []

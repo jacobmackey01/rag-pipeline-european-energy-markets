@@ -1,3 +1,5 @@
+"""Unit tests for document checksums and page-aware tokenizer chunking."""
+
 from pathlib import Path
 
 import pytest
@@ -13,9 +15,12 @@ from rag_pipeline.documents import (
 
 
 class FakeTokenizer:
+    """Small stand-in for a Hugging Face fast tokenizer in offset-mapping tests."""
+
     is_fast = True
 
     def __call__(self, text, add_special_tokens=False, return_offsets_mapping=False, **kwargs):
+        """Return simple whitespace token offsets matching the tokenizer API shape."""
         assert add_special_tokens is False
         assert return_offsets_mapping is True
         offsets = []
@@ -29,6 +34,7 @@ class FakeTokenizer:
 
 
 def test_chunk_text_with_tokenizer_uses_real_offsets():
+    """Tokenizer offsets should drive chunk windows and preserve source positions."""
     text = "alpha beta gamma delta epsilon"
 
     chunks = chunk_text_with_tokenizer(
@@ -47,6 +53,7 @@ def test_chunk_text_with_tokenizer_uses_real_offsets():
 
 
 def test_page_range_can_span_pages():
+    """A chunk spanning the page separator should report both source pages."""
     text = "page one text\n\npage two text"
     chunks = chunk_text_with_tokenizer(
         text,
@@ -67,6 +74,7 @@ def test_page_range_can_span_pages():
 
 
 def test_verify_source_file_rejects_checksum_mismatch(tmp_path: Path):
+    """Pinned corpus checksums should fail loudly on drift or corruption."""
     path = tmp_path / "report.pdf"
     path.write_bytes(b"report-bytes")
     source = SourceDocument(
@@ -81,6 +89,7 @@ def test_verify_source_file_rejects_checksum_mismatch(tmp_path: Path):
 
 
 def test_sha256_file_returns_lowercase_digest(tmp_path: Path):
+    """Checksum output is normalized for direct comparison with sources.json."""
     path = tmp_path / "report.pdf"
     path.write_bytes(b"abc")
 

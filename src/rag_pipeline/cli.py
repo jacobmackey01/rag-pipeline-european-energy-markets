@@ -1,3 +1,5 @@
+"""Command-line interface for corpus setup, retrieval, Q&A, and validation."""
+
 from __future__ import annotations
 
 import argparse
@@ -12,6 +14,7 @@ from rag_pipeline.validation import run_validation, write_validation_results
 
 
 def _print_chunks(chunks) -> None:
+    """Print compact retrieval previews without flooding the terminal."""
     for index, chunk in enumerate(chunks, start=1):
         print(f"\n[{index}] {chunk.citation_label} | distance={chunk.distance:.4f}")
         preview = chunk.text.replace("\n", " ")
@@ -19,19 +22,24 @@ def _print_chunks(chunks) -> None:
 
 
 def main() -> None:
+    """Parse CLI arguments and dispatch to the selected pipeline operation."""
     parser = argparse.ArgumentParser(description="Grounded RAG over public PDFs.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # Corpus management: downloads the PDFs and validates their checksums.
     download_parser = subparsers.add_parser("download", help="Download PDF corpus.")
     download_parser.add_argument("--overwrite", action="store_true")
 
+    # Index management: extracts PDF text, chunks it, embeds it, and stores it.
     ingest_parser = subparsers.add_parser("ingest", help="Build Chroma index.")
     ingest_parser.add_argument("--reset", action="store_true")
 
+    # Retrieval-only mode is useful for debugging chunk quality before generation.
     retrieve_parser = subparsers.add_parser("retrieve", help="Show top-k retrieved chunks.")
     retrieve_parser.add_argument("question")
     retrieve_parser.add_argument("--top-k", type=int, default=4)
 
+    # Full RAG mode: retrieve context, call the LLM, and report citation integrity.
     ask_parser = subparsers.add_parser("ask", help="Ask a grounded question.")
     ask_parser.add_argument("question")
     ask_parser.add_argument("--top-k", type=int, default=4)
@@ -68,6 +76,7 @@ def main() -> None:
     if args.command == "ask":
         result = ask_question(config, args.question, top_k=args.top_k)
         if args.json:
+            # Convert dataclass chunks so downstream scripts can parse the result.
             serializable = {
                 "answer": result["answer"],
                 "citation_check": result["citation_check"],
