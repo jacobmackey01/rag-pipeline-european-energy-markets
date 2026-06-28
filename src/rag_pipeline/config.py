@@ -50,7 +50,7 @@ class AppConfig:
             embedding_model=os.getenv(
                 "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
             ),
-            llm_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+            llm_model=os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
             llm_temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")),
             chunk_tokens=int(os.getenv("CHUNK_TOKENS", "220")),
             overlap_tokens=int(os.getenv("OVERLAP_TOKENS", "40")),
