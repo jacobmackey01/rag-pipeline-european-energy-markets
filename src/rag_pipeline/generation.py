@@ -49,6 +49,8 @@ def answer_from_context(
         instructions=GROUNDING_INSTRUCTION,
         # the user prompt (retrieved context + the question),
         input=build_grounded_prompt(question, chunks),
+        # Low effort is sufficient for this short, grounded-answer task.
+        reasoning={"effort": "low"},
         # a hard cap on answer length to control cost and runaway output.
         max_output_tokens=600,
     )

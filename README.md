@@ -19,7 +19,7 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 - **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`, run locally. Embeddings map semantically similar text close together, so a query can match related wording even without exact keyword overlap.
 - **Chunking:** default 220 MiniLM tokenizer tokens with 40-token overlap. Chunks are built from the tokenizer's offset mappings, so they preserve the original PDF text instead of rebuilding it; figures such as `5.25%` and `2025-2026` are not mangled. Chunking runs over the whole PDF text, not page-by-page, and metadata records the page range each chunk spans.
 - **Vector store:** ChromaDB with cosine distance and persistent local storage in `data/chroma`.
-- **Generation:** OpenAI Responses API. The default model is `gpt-5.6-luna`, an efficient model suitable for this short grounded-answer task. Override with `OPENAI_MODEL`. The request omits `temperature` because GPT-5.6 models do not support that parameter; repeatability is measured through the validation suite instead.
+- **Generation:** OpenAI Responses API. The default model is `gpt-5.6-luna`, with reasoning effort explicitly set to `low` for this short grounded-answer task. Override the model with `OPENAI_MODEL`. The request omits `temperature` because GPT-5.6 models do not support that parameter; repeatability is measured through the validation suite instead.
 - **Anti-hallucination:** the prompt says to answer only from retrieved context, cite source filenames, and return exactly `Not found in the provided documents.` when the context does not contain the answer.
 - **Validation:** the CLI includes grounding, refusal, retrieval-quality, citation-source, and corpus-checksum checks.
 
