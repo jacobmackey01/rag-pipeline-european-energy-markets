@@ -77,8 +77,6 @@ class AppConfig:
     embedding_model: str
     # The OpenAI model used to generate answers.
     llm_model: str
-    # Sampling temperature for the LLM (0 = as deterministic as possible).
-    llm_temperature: float
     # Target chunk size, measured in tokens.
     chunk_tokens: int
     # How many tokens consecutive chunks share (overlap).
@@ -113,10 +111,8 @@ class AppConfig:
             embedding_model=os.getenv(
                 "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
             ),
-            # The generation model; defaults to gpt-5.4-mini (override OPENAI_MODEL).
-            llm_model=os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
-            # Temperature comes from the env as text, so convert it to a float.
-            llm_temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")),
+            # The generation model; defaults to GPT-5.6 Luna (override OPENAI_MODEL).
+            llm_model=os.getenv("OPENAI_MODEL", "gpt-5.6-luna"),
             # Chunk size and overlap, converted from env strings to integers.
             chunk_tokens=int(os.getenv("CHUNK_TOKENS", "220")),
             overlap_tokens=int(os.getenv("OVERLAP_TOKENS", "40")),

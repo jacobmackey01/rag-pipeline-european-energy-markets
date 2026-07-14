@@ -49,8 +49,6 @@ def answer_from_context(
         instructions=GROUNDING_INSTRUCTION,
         # the user prompt (retrieved context + the question),
         input=build_grounded_prompt(question, chunks),
-        # temperature (0 by default = deterministic, repeatable answers),
-        temperature=config.llm_temperature,
         # a hard cap on answer length to control cost and runaway output.
         max_output_tokens=600,
     )
