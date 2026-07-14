@@ -23,6 +23,10 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 - **Anti-hallucination:** the prompt says to answer only from retrieved context, cite source filenames, and return exactly `Not found in the provided documents.` when the context does not contain the answer.
 - **Validation:** the CLI includes grounding, refusal, retrieval-quality, citation-source, and corpus-checksum checks.
 
+### Why Low Reasoning Effort?
+
+Retrieval has already narrowed the evidence before generation begins, so the model's job is to produce a short grounded answer with source citations rather than perform open-ended research or multi-step tool use. Explicit `low` effort avoids GPT-5.6's default `medium` reasoning overhead for this latency-sensitive step. It is not a determinism or correctness guarantee: the grounding prompt, refusal behavior, citation-source check, and validation cases remain the controls that must be measured. The setting should be raised to `medium` only if representative validation questions show a material gain in answer completeness or grounding. This follows [OpenAI's guidance](https://developers.openai.com/api/docs/guides/latest-model) to choose reasoning effort from workload evidence rather than assuming higher is always better.
+
 ## Setup
 
 ```powershell
