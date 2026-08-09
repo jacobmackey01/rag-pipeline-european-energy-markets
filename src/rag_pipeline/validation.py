@@ -1,9 +1,9 @@
 # =============================================================================
-# validation.py — The anti-hallucination test suite (the headline feature).
+# validation.py — Corpus, retrieval, refusal, and citation smoke checks.
 #
 # This file defines a handful of fixed test cases and runs them through the REAL
-# pipeline to prove the system behaves: it answers and cites correctly when the
-# answer exists, and refuses (instead of inventing) when it doesn't.
+# pipeline. These cases detect regressions; they are not a benchmark or proof
+# that every generated claim is supported.
 # =============================================================================
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from rag_pipeline.config import AppConfig, REFUSAL_MESSAGE
+from rag_pipeline.documents import CorpusIntegrityError, verify_corpus
 from rag_pipeline.generation import answer_from_context
 from rag_pipeline.store import RetrievedChunk, retrieve
 
@@ -106,9 +107,43 @@ def _phrase_check(answer: str, phrases: tuple[str, ...]) -> bool:
     return all(phrase.lower() in lower_answer for phrase in phrases)
 
 
+def _corpus_validation_result(config: AppConfig) -> ValidationResult:
+    """Return a structured result for the manifest-backed corpus check."""
+    try:
+        verified = verify_corpus(config)
+    except CorpusIntegrityError as exc:
+        return ValidationResult(
+            name="corpus_integrity",
+            question="Verify every manifest PDF against its pinned SHA256 checksum.",
+            passed=False,
+            answer="(local corpus check failed)",
+            retrieved_sources=[],
+            retrieved_labels=[],
+            checks={"manifest_files_present_and_checksummed": False},
+            notes=[str(exc)],
+        )
+
+    return ValidationResult(
+        name="corpus_integrity",
+        question="Verify every manifest PDF against its pinned SHA256 checksum.",
+        passed=True,
+        answer="(local corpus check passed)",
+        retrieved_sources=[path.name for path in verified],
+        retrieved_labels=[],
+        checks={"manifest_files_present_and_checksummed": True},
+        notes=[f"Verified {len(verified)} manifest PDF(s)."],
+    )
+
+
 # Run every validation case through the real pipeline and collect the results.
 def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
-    results: list[ValidationResult] = []
+    corpus_result = _corpus_validation_result(config)
+    # Do not spend money on LLM calls or trust an existing index when the local
+    # source corpus is missing or has drifted from the pinned manifest.
+    if not corpus_result.passed:
+        return [corpus_result]
+
+    results: list[ValidationResult] = [corpus_result]
     # Process each case in turn.
     for case in VALIDATION_CASES:
         # Always run retrieval, so source quality is visible even for refusal cases.

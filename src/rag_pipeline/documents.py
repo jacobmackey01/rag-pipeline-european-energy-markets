@@ -35,6 +35,10 @@ from rag_pipeline.chunking import TextChunk, chunk_text, chunk_text_with_tokeniz
 from rag_pipeline.config import AppConfig
 
 
+class CorpusIntegrityError(RuntimeError):
+    """Raised when the local PDF corpus cannot be verified against its manifest."""
+
+
 # One entry from data/sources.json: a source PDF we intend to ingest.
 @dataclass(frozen=True)
 class SourceDocument:
@@ -130,9 +134,61 @@ def verify_source_file(path: Path, source: SourceDocument) -> None:
     expected = source.sha256.lower()
     # If they differ, the file is wrong/corrupt/changed — stop immediately.
     if actual != expected:
-        raise RuntimeError(
+        raise CorpusIntegrityError(
             f"Checksum mismatch for {path.name}: expected {expected}, got {actual}."
         )
+
+
+def verify_corpus(config: AppConfig) -> list[Path]:
+    """Verify that every manifest source exists locally and matches its checksum.
+
+    Validation must operate on the same pinned corpus used for ingestion. A
+    missing checksum is therefore a failure here even though ``SourceDocument``
+    permits checksum-less sources for other callers.
+    """
+    try:
+        sources = load_sources(config.sources_path)
+    except (OSError, json.JSONDecodeError, TypeError) as exc:
+        raise CorpusIntegrityError(
+            f"Could not load corpus manifest {config.sources_path}: {exc}"
+        ) from exc
+
+    problems: list[str] = []
+    verified: list[Path] = []
+    seen: set[str] = set()
+
+    if not sources:
+        problems.append("the corpus manifest contains no sources")
+
+    for source in sources:
+        if source.filename in seen:
+            problems.append(f"duplicate manifest filename: {source.filename}")
+            continue
+        seen.add(source.filename)
+
+        if not source.sha256:
+            problems.append(f"no SHA256 checksum pinned for {source.filename}")
+            continue
+
+        path = config.raw_dir / source.filename
+        if not path.is_file():
+            problems.append(
+                f"missing {source.filename}; run `rag-pipeline download` first"
+            )
+            continue
+
+        try:
+            verify_source_file(path, source)
+        except (CorpusIntegrityError, OSError) as exc:
+            problems.append(str(exc))
+            continue
+        verified.append(path)
+
+    if problems:
+        details = "\n  - ".join(problems)
+        raise CorpusIntegrityError(f"Corpus integrity check failed:\n  - {details}")
+
+    return verified
 
 
 # Download every manifest PDF (unless already present), then verify each one.

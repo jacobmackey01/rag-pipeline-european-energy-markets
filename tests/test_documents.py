@@ -1,15 +1,19 @@
 # Unit tests for document checksums and page-aware tokenizer chunking.
 
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from rag_pipeline.chunking import chunk_text_with_tokenizer
 from rag_pipeline.documents import (
+    CorpusIntegrityError,
     PageSpan,
     SourceDocument,
     _page_range_for_chunk,
     sha256_file,
+    verify_corpus,
     verify_source_file,
 )
 
@@ -93,3 +97,54 @@ def test_sha256_file_returns_lowercase_digest(tmp_path: Path):
     path.write_bytes(b"abc")
 
     assert sha256_file(path) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+
+
+def _corpus_config(tmp_path: Path, records: list[dict]) -> SimpleNamespace:
+    raw_dir = tmp_path / "data" / "raw"
+    raw_dir.mkdir(parents=True)
+    sources_path = tmp_path / "data" / "sources.json"
+    sources_path.write_text(json.dumps(records), encoding="utf-8")
+    return SimpleNamespace(raw_dir=raw_dir, sources_path=sources_path)
+
+
+def test_verify_corpus_checks_every_manifest_file(tmp_path: Path):
+    config = _corpus_config(
+        tmp_path,
+        [
+            {
+                "filename": "report.pdf",
+                "title": "Report",
+                "url": "https://example.com/report.pdf",
+                "sha256": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+            }
+        ],
+    )
+    (config.raw_dir / "report.pdf").write_bytes(b"abc")
+
+    assert verify_corpus(config) == [config.raw_dir / "report.pdf"]
+
+
+def test_verify_corpus_reports_missing_and_unpinned_sources(tmp_path: Path):
+    config = _corpus_config(
+        tmp_path,
+        [
+            {
+                "filename": "missing.pdf",
+                "title": "Missing",
+                "url": "https://example.com/missing.pdf",
+                "sha256": "0" * 64,
+            },
+            {
+                "filename": "unpinned.pdf",
+                "title": "Unpinned",
+                "url": "https://example.com/unpinned.pdf",
+            },
+        ],
+    )
+
+    with pytest.raises(CorpusIntegrityError) as exc_info:
+        verify_corpus(config)
+
+    message = str(exc_info.value)
+    assert "missing missing.pdf" in message
+    assert "no SHA256 checksum pinned for unpinned.pdf" in message

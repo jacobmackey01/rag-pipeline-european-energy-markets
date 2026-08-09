@@ -25,10 +25,11 @@ from rag_pipeline.store import RetrievedChunk
 PDF_PATTERN = re.compile(r"(?<![\w.-])([\w.-]+\.pdf)(?![\w.-])", re.IGNORECASE)
 
 
-# THE anti-hallucination contract. This system instruction tells the model to use
-# ONLY the provided context, cite sources, and return the EXACT refusal string
-# when the answer isn't present. {REFUSAL_MESSAGE} is interpolated from config so
-# the prompt and the validation test always agree on the exact wording.
+# The grounding instruction tells the model to use ONLY the provided context,
+# cite sources, and return the EXACT refusal string when the answer isn't
+# present. It constrains generation but is not itself a correctness guarantee.
+# {REFUSAL_MESSAGE} is interpolated from config so the prompt and validation test
+# always agree on the exact wording.
 GROUNDING_INSTRUCTION = (
     "Answer ONLY using the provided context. Cite the source filename for each claim. "
     f"If the answer is not in the context, reply exactly: '{REFUSAL_MESSAGE}' "
@@ -97,5 +98,6 @@ def citation_check(answer: str, retrieved: list[RetrievedChunk]) -> tuple[bool, 
     if unknown:
         return False, f"Cited source(s) not present in retrieved context: {sorted(unknown)}"
 
-    # Otherwise every citation is legitimate.
+    # Otherwise every cited filename came from retrieved context. This does not
+    # establish that each generated claim is entailed by that source.
     return True, "All cited PDF filenames were present in retrieved context."
