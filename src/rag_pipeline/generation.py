@@ -45,7 +45,7 @@ def answer_from_context(
     response = client.responses.create(
         # which model to use (from config / env),
         model=config.llm_model,
-        # the system instruction (our anti-hallucination contract),
+        # the system instruction that constrains answers to retrieved context,
         instructions=GROUNDING_INSTRUCTION,
         # the user prompt (retrieved context + the question),
         input=build_grounded_prompt(question, chunks),

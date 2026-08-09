@@ -63,12 +63,18 @@ def get_collection(config: AppConfig):
 # Delete the whole collection so `ingest --reset` can rebuild from a clean slate.
 def reset_collection(config: AppConfig) -> None:
     client = get_client(config)
-    # Wrapped in try/except because deleting a collection that doesn't exist
-    # raises — and "already gone" is a perfectly fine outcome here.
-    try:
-        client.delete_collection(config.collection_name)
-    except Exception:
-        pass
+    # Chroma has returned collection objects and plain names across supported
+    # versions. Normalise both shapes before deciding whether deletion is needed.
+    collection_names = {
+        collection if isinstance(collection, str) else collection.name
+        for collection in client.list_collections()
+    }
+    if config.collection_name not in collection_names:
+        return
+
+    # Do not catch deletion errors. A failed reset followed by upserts could
+    # retain stale chunks from documents that were removed from the corpus.
+    client.delete_collection(config.collection_name)
 
 
 # Embed all chunks and write them into Chroma. Returns how many were stored.

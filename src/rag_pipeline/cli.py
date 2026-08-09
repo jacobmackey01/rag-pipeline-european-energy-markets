@@ -65,8 +65,10 @@ def main() -> None:
     # Emit machine-readable JSON instead of plain text.
     ask_parser.add_argument("--json", action="store_true")
 
-    # `validate` — run the anti-hallucination test suite.
-    validate_parser = subparsers.add_parser("validate", help="Run grounding/refusal validation.")
+    # `validate` — run corpus, retrieval, refusal, and citation smoke checks.
+    validate_parser = subparsers.add_parser(
+        "validate", help="Run corpus and grounded-answer validation checks."
+    )
     validate_parser.add_argument("--top-k", type=int, default=4)
     # Where to write the detailed JSON results.
     validate_parser.add_argument(
