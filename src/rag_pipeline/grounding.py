@@ -1,11 +1,4 @@
-# =============================================================================
-# grounding.py — Build the LLM prompt and verify the model's citations.
-#
-# "Grounding" means tying the model's answer to the retrieved source text. This
-# file holds (a) the strict system instruction that forbids outside knowledge,
-# (b) the prompt builder that lays out the context, and (c) a check that the
-# model only cited filenames it was actually given.
-# =============================================================================
+"""Build grounded prompts and verify cited PDF filenames."""
 
 from __future__ import annotations
 
@@ -15,20 +8,15 @@ from rag_pipeline.config import REFUSAL_MESSAGE
 from rag_pipeline.store import RetrievedChunk
 
 
-# Regex that finds PDF filenames inside the model's answer. Breakdown:
-#   (?<![\w.-])   — a "negative lookbehind": the match must NOT be preceded by a
-#                   word char, dot, or dash (so we don't grab the tail of a
-#                   longer token or the word before the filename),
-#   ([\w.-]+\.pdf) — the capture group: filename characters ending in ".pdf",
-#   (?![\w.-])    — a "negative lookahead": not followed by such a char either.
-# re.IGNORECASE so ".PDF" matches too.
+# Regex for PDF filenames in generated answers:
+# - the negative lookbehind prevents a match from starting inside a longer token;
+# - the capture group selects filename characters ending in ".pdf";
+# - the negative lookahead prevents a match from ending inside a longer token.
+# Matching is case-insensitive so ".PDF" is also accepted.
 PDF_PATTERN = re.compile(r"(?<![\w.-])([\w.-]+\.pdf)(?![\w.-])", re.IGNORECASE)
 
 
-# THE anti-hallucination contract. This system instruction tells the model to use
-# ONLY the provided context, cite sources, and return the EXACT refusal string
-# when the answer isn't present. {REFUSAL_MESSAGE} is interpolated from config so
-# the prompt and the validation test always agree on the exact wording.
+# Grounding instruction shared with the refusal validation.
 GROUNDING_INSTRUCTION = (
     "Answer ONLY using the provided context. Cite the source filename for each claim. "
     f"If the answer is not in the context, reply exactly: '{REFUSAL_MESSAGE}' "
@@ -79,7 +67,7 @@ def extract_cited_sources(answer: str) -> set[str]:
 # Verify that every source the model cited was actually among the chunks we gave
 # it. This catches a model "citing" a document it invented or never saw.
 def citation_check(answer: str, retrieved: list[RetrievedChunk]) -> tuple[bool, str]:
-    # A pure refusal needs no citation — pass immediately.
+    # A pure refusal does not require a citation.
     if answer.strip() == REFUSAL_MESSAGE:
         return True, "Refusal answer does not require citations."
 
@@ -88,7 +76,7 @@ def citation_check(answer: str, retrieved: list[RetrievedChunk]) -> tuple[bool, 
     # ...versus what it was actually given.
     retrieved_sources = {chunk.source for chunk in retrieved}
 
-    # A non-refusal answer with NO citation fails our grounding standard.
+    # A non-refusal answer without a citation fails the grounding check.
     if not cited:
         return False, "No PDF filename citation found in the answer."
 

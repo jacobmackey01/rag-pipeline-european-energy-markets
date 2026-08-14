@@ -1,10 +1,4 @@
-# =============================================================================
-# cli.py — The command-line interface (the `rag-pipeline` command).
-#
-# This parses the sub-command you type (download / ingest / retrieve / ask /
-# validate) and calls the matching pipeline function. It's the user-facing entry
-# point wired up in pyproject.toml under [project.scripts].
-# =============================================================================
+"""Command-line interface for downloading, indexing, querying, and validating the corpus."""
 
 from __future__ import annotations
 
@@ -40,23 +34,22 @@ def main() -> None:
     # `rag-pipeline` with no command shows an error instead of doing nothing.
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # `download` — fetch the PDFs and verify their checksums.
+    # `download`: fetch PDFs and verify their checksums.
     download_parser = subparsers.add_parser("download", help="Download PDF corpus.")
     # Optional flag to re-download even if the files already exist.
     download_parser.add_argument("--overwrite", action="store_true")
 
-    # `ingest` — extract, chunk, embed, and store the PDFs.
+    # `ingest`: extract, chunk, embed, and store the PDFs.
     ingest_parser = subparsers.add_parser("ingest", help="Build Chroma index.")
     # Optional flag to wipe and rebuild the collection from scratch.
     ingest_parser.add_argument("--reset", action="store_true")
 
-    # `retrieve` — show the top-k chunks for a question WITHOUT calling the LLM
-    # (great for debugging retrieval quality cheaply, with no API cost).
+    # `retrieve`: inspect top-k chunks without an LLM call.
     retrieve_parser = subparsers.add_parser("retrieve", help="Show top-k retrieved chunks.")
     retrieve_parser.add_argument("question")
     retrieve_parser.add_argument("--top-k", type=int, default=4)
 
-    # `ask` — the full RAG flow: retrieve + generate + citation check.
+    # `ask`: retrieve context, generate an answer, and check citations.
     ask_parser = subparsers.add_parser("ask", help="Ask a grounded question.")
     ask_parser.add_argument("question")
     ask_parser.add_argument("--top-k", type=int, default=4)
@@ -65,7 +58,7 @@ def main() -> None:
     # Emit machine-readable JSON instead of plain text.
     ask_parser.add_argument("--json", action="store_true")
 
-    # `validate` — run the anti-hallucination test suite.
+    # `validate`: run grounding and refusal checks.
     validate_parser = subparsers.add_parser("validate", help="Run grounding/refusal validation.")
     validate_parser.add_argument("--top-k", type=int, default=4)
     # Where to write the detailed JSON results.
@@ -80,7 +73,7 @@ def main() -> None:
     # Build the configuration (loads .env files, reads env vars).
     config = AppConfig.from_env()
 
-    # --- Dispatch to the chosen command ---
+    # Dispatch to the chosen command.
 
     # download: fetch PDFs and print where each one landed.
     if args.command == "download":
