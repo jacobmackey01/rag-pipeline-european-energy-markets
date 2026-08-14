@@ -1,27 +1,16 @@
-# =============================================================================
-# embeddings.py — Turn text into vectors (the heart of "semantic" search).
-#
-# An *embedding* is a list of numbers (a vector) that represents the MEANING of
-# a piece of text as a point in space. Texts with similar meaning get vectors
-# pointing in similar directions, so "renewable subsidy" lands near "green
-# energy support" even though they share no words. This file wraps the local
-# model that produces those vectors.
-# =============================================================================
+"""Create normalized local embeddings for document and query text."""
 
-# Lazy type-hint evaluation (see config.py for the explanation).
+# Defer type-hint evaluation.
 from __future__ import annotations
 
-# `Sequence` is a general type meaning "an ordered collection you can iterate"
-# (a list, a tuple, etc.). Using it as a hint says "accept any sequence of str".
+# Accept any ordered sequence of strings.
 from collections.abc import Sequence
 
 
-# A thin wrapper around the sentence-transformers model. Its main jobs are:
-#   (1) load the model LAZILY (only when first used), and
-#   (2) keep our embedding settings (normalisation) in one place.
+# Load the sentence-transformers model on first use and keep normalization
+# settings in one place.
 class LocalEmbedder:
-    # Constructor: store the model name but DON'T load the model yet. Loading
-    # reads ~90MB and is slow, so we defer it until it's actually needed.
+    # Store the model name and defer loading until first use.
     def __init__(self, model_name: str) -> None:
         # Remember which model to load later.
         self.model_name = model_name
@@ -29,8 +18,7 @@ class LocalEmbedder:
         # underscore is a Python convention for "internal, don't touch directly".
         self._model = None
 
-    # A @property lets us access `embedder.model` like a normal attribute while
-    # actually running code behind the scenes — here, load-on-first-use.
+    # Load and cache the model on first access.
     @property
     def model(self):
         # If the model hasn't been loaded yet, load it now.
@@ -42,7 +30,7 @@ class LocalEmbedder:
             # Download (first run) and load the model, then cache it on self so
             # later calls reuse the same in-memory model.
             self._model = SentenceTransformer(self.model_name)
-        # Hand back the cached, ready model.
+        # Return the cached model.
         return self._model
 
     # Convert a batch of texts into a list of embedding vectors.

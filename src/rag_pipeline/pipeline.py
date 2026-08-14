@@ -1,10 +1,4 @@
-# =============================================================================
-# pipeline.py — The two top-level operations the CLI calls.
-#
-# Everything else in the package is a building block; this file wires those
-# blocks into the two things a user actually does: build the index, and ask a
-# question. Keeping this orchestration thin makes the overall flow easy to follow.
-# =============================================================================
+"""Orchestrate index construction and grounded question answering."""
 
 from __future__ import annotations
 
@@ -15,14 +9,14 @@ from rag_pipeline.generation import answer_from_context
 from rag_pipeline.store import index_chunks, reset_collection, retrieve
 
 
-# INDEXING flow: load + chunk all PDFs and store their embeddings in Chroma.
+# Indexing flow: load and chunk PDFs, then store their embeddings in Chroma.
 def build_index(config: AppConfig, reset: bool = False) -> int:
     # If asked, wipe the existing collection first for a clean rebuild.
     if reset:
         reset_collection(config)
     # Load and chunk every manifest PDF.
     chunks = load_pdf_chunks(config)
-    # If nothing came back, the corpus probably wasn't downloaded — guide the user.
+    # Report the likely setup issue when the corpus has no extractable chunks.
     if not chunks:
         raise RuntimeError(
             f"No PDF chunks found in {config.raw_dir}. Run `rag-pipeline download` first."
@@ -31,7 +25,7 @@ def build_index(config: AppConfig, reset: bool = False) -> int:
     return index_chunks(config, chunks)
 
 
-# ANSWERING flow: retrieve relevant chunks, then generate a grounded answer.
+# Answering flow: retrieve relevant chunks, then generate a grounded answer.
 def ask_question(config: AppConfig, question: str, top_k: int = 4) -> dict[str, object]:
     # Build the embedder once and pass it to retrieve (so the model loads once).
     embedder = LocalEmbedder(config.embedding_model)

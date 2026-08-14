@@ -1,10 +1,4 @@
-# =============================================================================
-# store.py — The vector database layer (ChromaDB): store and search embeddings.
-#
-# A vector store keeps each chunk's embedding (its meaning-vector) alongside its
-# text and metadata, and can quickly answer: "given this query vector, which
-# stored vectors are closest?" Closeness here = cosine similarity = similar meaning.
-# =============================================================================
+"""Store document embeddings in ChromaDB and retrieve nearest chunks."""
 
 from __future__ import annotations
 
@@ -30,11 +24,10 @@ class RetrievedChunk:
     chunk_index: int
     page_start: int
     page_end: int
-    # Cosine DISTANCE from the query (lower = more similar). Chroma returns this.
+    # Cosine distance from the query; lower values are more similar.
     distance: float
 
-    # A short human-readable label like "report.pdf, page 18, chunk 45", shown in
-    # CLI previews so you can eyeball where a chunk came from.
+    # Human-readable source label for CLI previews.
     @property
     def citation_label(self) -> str:
         return f"{self.source}, page {self.page_start}, chunk {self.chunk_index}"
@@ -52,8 +45,7 @@ def get_client(config: AppConfig):
 # creating it if it doesn't exist yet.
 def get_collection(config: AppConfig):
     client = get_client(config)
-    # `hnsw:space: cosine` tells Chroma to rank similarity by cosine distance —
-    # the right metric for normalised text embeddings.
+    # Rank normalized text embeddings by cosine distance.
     return client.get_or_create_collection(
         name=config.collection_name,
         metadata={"hnsw:space": "cosine"},
@@ -63,8 +55,7 @@ def get_collection(config: AppConfig):
 # Delete the whole collection so `ingest --reset` can rebuild from a clean slate.
 def reset_collection(config: AppConfig) -> None:
     client = get_client(config)
-    # Wrapped in try/except because deleting a collection that doesn't exist
-    # raises — and "already gone" is a perfectly fine outcome here.
+    # Treat a missing collection as an already-reset state.
     try:
         client.delete_collection(config.collection_name)
     except Exception:
@@ -111,15 +102,14 @@ def _metadata_value(metadata: dict[str, Any], key: str, default: str | int) -> A
     return default if value is None else value
 
 
-# The RETRIEVAL step: embed the question and fetch the top-k most similar chunks.
+# Embed the question and fetch the top-k most similar chunks.
 def retrieve(
     config: AppConfig,
     question: str,
     top_k: int = 4,
     embedder: LocalEmbedder | None = None,
 ) -> list[RetrievedChunk]:
-    # Same model as indexing — crucial, because two vectors are only comparable
-    # if the same model produced them (same coordinate space).
+    # Query and document vectors must use the same embedding model.
     embedder = embedder or LocalEmbedder(config.embedding_model)
     collection = get_collection(config)
 

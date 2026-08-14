@@ -1,13 +1,7 @@
-# =============================================================================
-# documents.py — From public PDFs to source-traceable, page-tagged chunks.
-#
-# This module is the front half of the INGESTION pipeline. It:
-#   1. downloads the PDFs listed in data/sources.json,
-#   2. verifies each file against a pinned SHA256 checksum (reproducibility),
-#   3. extracts text page-by-page (remembering where each page starts/ends),
-#   4. chunks the text, and
-#   5. attaches metadata (filename, URL, page range) so answers can cite sources.
-# =============================================================================
+"""Download, verify, extract, and chunk the source PDFs.
+
+Each chunk retains its filename, source URL, and page range for citation checks.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +9,7 @@ from __future__ import annotations
 import hashlib
 # `json` reads the sources manifest file.
 import json
-# `re` tidies up messy whitespace from PDF text extraction.
+# `re` normalizes whitespace from PDF text extraction.
 import re
 # `urllib.request` is Python's built-in HTTP client (no extra dependency needed).
 import urllib.request
@@ -23,8 +17,7 @@ import urllib.request
 from dataclasses import dataclass
 # `Path` for cross-platform filesystem paths.
 from pathlib import Path
-# `Any` means "any type" — used for the tokenizer, whose exact class we'd rather
-# not import just for a type hint.
+# Generic tokenizer type without importing the concrete implementation.
 from typing import Any
 
 # `PdfReader` from the pypdf library opens a PDF and exposes its pages/text.
@@ -128,7 +121,7 @@ def verify_source_file(path: Path, source: SourceDocument) -> None:
     actual = sha256_file(path)
     # ...and normalise the expected one to lowercase for a fair comparison.
     expected = source.sha256.lower()
-    # If they differ, the file is wrong/corrupt/changed — stop immediately.
+    # Reject files that differ from the pinned checksum.
     if actual != expected:
         raise RuntimeError(
             f"Checksum mismatch for {path.name}: expected {expected}, got {actual}."
@@ -173,13 +166,13 @@ def _load_chunk_tokenizer(model_name: str) -> Any:
     # `use_fast=True` requests the Rust-backed tokenizer, which is the only kind
     # that can return character offset mappings (which our chunker relies on).
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
-    # Defensive check: if we somehow got a slow tokenizer (no offsets), fail loudly.
+    # Offset mappings require a fast tokenizer.
     if not getattr(tokenizer, "is_fast", False):
         raise RuntimeError(f"Tokenizer for {model_name} must support offset mappings.")
     return tokenizer
 
 
-# Clean up the raw text pypdf extracts, WITHOUT changing the actual words.
+# Normalize extracted whitespace without changing words.
 def _clean_pdf_text(text: str) -> str:
     # Replace NUL bytes (which some PDFs contain) with spaces.
     text = text.replace("\x00", " ")
@@ -191,8 +184,7 @@ def _clean_pdf_text(text: str) -> str:
     return text.strip()
 
 
-# Extract a PDF into ONE combined text string, plus a list of PageSpans telling
-# us which slice of that string came from which page.
+# Extract a PDF into one combined text string and retain the page spans.
 def _extract_pdf_text_with_pages(reader: PdfReader) -> tuple[str, list[PageSpan]]:
     # Pieces of text we'll join at the end (faster than repeated string +=).
     parts: list[str] = []
@@ -233,7 +225,7 @@ def _extract_pdf_text_with_pages(reader: PdfReader) -> tuple[str, list[PageSpan]
 # can straddle a page boundary, so this may return two different pages.
 def _page_range_for_chunk(page_spans: list[PageSpan], chunk: TextChunk) -> tuple[int, int]:
     # Collect every page whose character span overlaps the chunk's span. The
-    # overlap test is "page ends after chunk starts AND page starts before chunk ends".
+    # overlap test is "page ends after chunk starts and page starts before chunk ends".
     pages = [
         span.page_number
         for span in page_spans
@@ -309,7 +301,7 @@ def extract_chunks_from_pdf(
     return chunks
 
 
-# Top-level ingestion helper: load and chunk EVERY manifest PDF found in data/raw.
+# Load and chunk every manifest PDF found in data/raw.
 def load_pdf_chunks(config: AppConfig) -> list[DocumentChunk]:
     # Build a filename -> SourceDocument lookup so we can match files to manifest entries.
     sources = {source.filename: source for source in load_sources(config.sources_path)}

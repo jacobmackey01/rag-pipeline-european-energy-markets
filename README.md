@@ -1,10 +1,10 @@
 # RAG Pipeline - Grounded QA
 
-This project is a small, defensible retrieval-augmented generation pipeline over public European energy-market PDFs. It retrieves relevant document chunks, asks an LLM to answer only from those chunks, cites source filenames, and refuses with `Not found in the provided documents.` when the answer is absent.
+This project is a retrieval-augmented generation pipeline over public European energy-market PDFs. It retrieves relevant document chunks, asks an LLM to answer only from those chunks, cites source filenames, and refuses with `Not found in the provided documents.` when the answer is absent.
 
 ## Corpus
 
-Option A is used, but narrowed to the Cobblestone Energy story: public European power and gas market documents from ENTSO-E and ACER.
+The corpus is limited to public European power and gas market documents from ENTSO-E and ACER.
 
 - ENTSO-E Summer Outlook 2026
 - ENTSO-E Winter Outlook 2025-2026
@@ -25,7 +25,7 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 
 ### Why Low Reasoning Effort?
 
-Retrieval has already narrowed the evidence before generation begins, so the model's job is to produce a short grounded answer with source citations rather than perform open-ended research or multi-step tool use. Explicit `low` effort avoids GPT-5.6's default `medium` reasoning overhead for this latency-sensitive step. It is not a determinism or correctness guarantee: the grounding prompt, refusal behavior, citation-source check, and validation cases remain the controls that must be measured. The setting should be raised to `medium` only if representative validation questions show a material gain in answer completeness or grounding. This follows [OpenAI's guidance](https://developers.openai.com/api/docs/guides/latest-model) to choose reasoning effort from workload evidence rather than assuming higher is always better.
+Retrieval has already narrowed the evidence before generation begins, so the model's job is to produce a short grounded answer with source citations rather than perform open-ended research or multi-step tool use. Explicit `low` effort avoids GPT-5.6's default `medium` reasoning overhead for this latency-sensitive step. It is not a determinism or correctness guarantee: the grounding prompt, refusal behavior, citation-source check, and validation cases remain the controls that must be measured. The setting should be raised to `medium` only if representative validation questions show a material gain in answer completeness or grounding. This follows [OpenAI's guidance](https://developers.openai.com/api/docs/guides/latest-model) to choose reasoning effort from workload evidence instead of treating higher effort as the default.
 
 ## Setup
 
@@ -89,6 +89,6 @@ Validation cases:
 - `grounding_acer_2026_market_developments`: retrieves `acer-gas-electricity-key-developments-2026.pdf` and checks for specific market-monitoring details such as LNG, Russian gas imports, and network-code work.
 - `grounding_acer_see_cross_zonal_capacity`: retrieves `acer-see-cross-zonal-capacity-flexibility-2026.pdf` and checks for specific detail on price spikes, Greece-Italy HVDC capacity, and cross-zonal capacity.
 - `refusal_plausible_absent_poland_peak_demand`: asks an on-topic but absent question about Poland's projected Winter 2025-2026 peak electricity demand in GW and requires the exact refusal string.
-- `retrieval_quality_entsoe_winter_outlook`: checks that the expected Winter Outlook PDF appears in the top-k chunks. A related Summer Outlook chunk can rank highly because that report also discusses preparation for winter 2025-2026, which is a useful retrieval-quality nuance to know.
+- `retrieval_quality_entsoe_winter_outlook`: checks that the expected Winter Outlook PDF appears in the top-k chunks. A related Summer Outlook chunk can rank highly because that report also discusses preparation for winter 2025-2026; this overlap is recorded when interpreting the retrieval check.
 
 Detailed local validation output is written to `validation/results.json`, which is ignored by Git.

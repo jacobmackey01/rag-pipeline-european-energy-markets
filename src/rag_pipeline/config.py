@@ -1,32 +1,17 @@
-# =============================================================================
-# config.py — One place that holds every runtime setting for the pipeline.
-#
-# Instead of scattering file paths, model names, and tuning numbers across the
-# codebase, we gather them into a single immutable object (AppConfig). It also
-# includes a tiny loader for ".env" files so secrets like the API key live
-# outside the code.
-# =============================================================================
+"""Central configuration and local environment-file loading."""
 
-# Makes every type hint in this file lazily evaluated (treated as a string).
-# It lets us write modern hint syntax like `str | None` and avoids some
-# import-ordering headaches. Common first line in modern Python modules.
+# Defer type-hint evaluation.
 from __future__ import annotations
 
-# `os` gives access to environment variables: os.getenv to read them and
-# os.environ (a dict) to read/write the live process environment.
+# Environment-variable access.
 import os
-# `dataclass` auto-generates the boilerplate (__init__, __repr__, equality) for
-# a class that mainly bundles data together — perfect for a settings object.
+# Immutable settings record.
 from dataclasses import dataclass
-# `Path` is an object-oriented, cross-platform way to build filesystem paths
-# (it handles Windows "\" vs Unix "/" for us).
+# Cross-platform filesystem paths.
 from pathlib import Path
 
 
-# The EXACT text the model must return when an answer isn't in the documents.
-# Defining it once, as a single constant, means the prompt, the generator, and
-# the validation test all refer to the same string — if they drifted apart, a
-# refusal test could "pass" while the user sees slightly different wording.
+# Exact refusal text shared by generation and validation.
 REFUSAL_MESSAGE = "Not found in the provided documents."
 
 
@@ -44,7 +29,7 @@ def load_env_file(path: Path) -> None:
         # Skip blank lines, comments (# ...), and anything that isn't KEY=VALUE.
         if not line or line.startswith("#") or "=" not in line:
             continue
-        # Split on the FIRST "=" only, so values that themselves contain "="
+        # Split on the first "=" only, so values that themselves contain "="
         # (like an API token) stay intact on the right-hand side.
         key, value = line.split("=", 1)
         # Clean the key the same way (whitespace + possible BOM).
@@ -52,8 +37,7 @@ def load_env_file(path: Path) -> None:
         # Clean the value: trim spaces, then remove surrounding quotes so both
         # KEY="value" and KEY=value end up identical.
         value = value.strip().strip('"').strip("'")
-        # Only set it if it has a name AND isn't already in the environment.
-        # "Don't override" means a real exported env var always beats the file.
+        # Do not override variables already present in the process environment.
         if key and key not in os.environ:
             os.environ[key] = value
 
@@ -91,7 +75,7 @@ class AppConfig:
         # then `.resolve()` to make it an absolute, symlink-free path.
         root = (root_dir or Path.cwd()).resolve()
 
-        # Load env files in priority order. .env.local is loaded FIRST; because
+        # Load env files in priority order. .env.local is loaded first; because
         # load_env_file never overrides an existing variable, whatever it sets
         # wins over .env (the fallback) loaded second.
         load_env_file(root / ".env.local")
@@ -107,7 +91,7 @@ class AppConfig:
             chroma_dir=root / "data" / "chroma",
             # Chroma collection name; override with RAG_COLLECTION if you want.
             collection_name=os.getenv("RAG_COLLECTION", "grounded_pdf_chunks"),
-            # The local embedding model — small, fast, free, runs on CPU.
+            # Local CPU-compatible embedding model.
             embedding_model=os.getenv(
                 "EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"
             ),

@@ -1,10 +1,4 @@
-# =============================================================================
-# generation.py — Call the LLM to produce a grounded, source-cited answer.
-#
-# This is the "G" in RAG (Generation). It takes the retrieved chunks, wraps them
-# in the grounding prompt, sends them to OpenAI, and then double-checks the
-# model's citations before returning.
-# =============================================================================
+"""Generate a grounded answer and verify its source citations."""
 
 from __future__ import annotations
 
@@ -18,15 +12,14 @@ from rag_pipeline.grounding import GROUNDING_INSTRUCTION, build_grounded_prompt,
 from rag_pipeline.store import RetrievedChunk
 
 
-# Generate an answer for `question` using ONLY `chunks` as evidence, then run a
+# Generate an answer for `question` using `chunks` as the only evidence, then run a
 # citation-integrity check. Returns a dict with the answer and the check result.
 def answer_from_context(
     config: AppConfig,
     question: str,
     chunks: list[RetrievedChunk],
 ) -> dict[str, object]:
-    # If retrieval found nothing, there's no evidence to answer from — refuse
-    # immediately and DON'T spend money/time on an LLM call.
+    # Refuse without an API call when retrieval returns no evidence.
     if not chunks:
         return {
             "answer": REFUSAL_MESSAGE,
@@ -45,7 +38,7 @@ def answer_from_context(
     response = client.responses.create(
         # which model to use (from config / env),
         model=config.llm_model,
-        # the system instruction (our anti-hallucination contract),
+        # the grounding instruction,
         instructions=GROUNDING_INSTRUCTION,
         # the user prompt (retrieved context + the question),
         input=build_grounded_prompt(question, chunks),

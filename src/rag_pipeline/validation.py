@@ -1,10 +1,4 @@
-# =============================================================================
-# validation.py — The anti-hallucination test suite (the headline feature).
-#
-# This file defines a handful of fixed test cases and runs them through the REAL
-# pipeline to prove the system behaves: it answers and cites correctly when the
-# answer exists, and refuses (instead of inventing) when it doesn't.
-# =============================================================================
+"""Run fixed grounding, refusal, retrieval, and citation validation cases."""
 
 from __future__ import annotations
 
@@ -17,7 +11,7 @@ from rag_pipeline.generation import answer_from_context
 from rag_pipeline.store import RetrievedChunk, retrieve
 
 
-# Describes ONE validation scenario and what we expect from it.
+# Definition of one validation scenario.
 @dataclass(frozen=True)
 class ValidationCase:
     # A short identifier for the case.
@@ -26,7 +20,7 @@ class ValidationCase:
     question: str
     # PDF(s) we expect retrieval to surface (empty tuple = don't check sources).
     expected_sources: tuple[str, ...] = ()
-    # Substrings the answer should contain (proves it found the real detail).
+    # Substrings expected in the answer.
     expected_phrases: tuple[str, ...] = ()
     # True if this case must return the exact refusal string.
     must_refuse: bool = False
@@ -51,8 +45,7 @@ class ValidationResult:
 
 # The actual test cases. Kept small and hand-picked so each result is explainable.
 VALIDATION_CASES = (
-    # Case 1: a grounding test — the answer IS in the corpus; expect that PDF and
-    # a few specific phrases that prove the real detail was found.
+    # Case 1: grounded answer with an expected source and phrases.
     ValidationCase(
         name="grounding_acer_2026_market_developments",
         question="What does ACER say about key developments in European electricity and gas markets in 2026?",
@@ -66,8 +59,7 @@ VALIDATION_CASES = (
         expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
         expected_phrases=("price spikes", "Greece and Italy", "cross-zonal capacity"),
     ),
-    # Case 3: the REFUSAL test — a plausible but ABSENT question. The whole point
-    # of the anti-hallucination story: it must refuse, not invent a number.
+    # Case 3: plausible but absent question requiring the exact refusal.
     ValidationCase(
         name="refusal_plausible_absent_poland_peak_demand",
         question=(
@@ -76,8 +68,7 @@ VALIDATION_CASES = (
         ),
         must_refuse=True,
     ),
-    # Case 4: a retrieval-only spot check (no LLM call) — does the right PDF rank
-    # in the top-k for this question?
+    # Case 4: retrieval-only check for the expected PDF in the top-k results.
     ValidationCase(
         name="retrieval_quality_entsoe_winter_outlook",
         question="What does ENTSO-E say in the Winter Outlook 2025-2026 about European adequacy?",
@@ -138,7 +129,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
 
             # Check #3 depends on the case type:
             if case.must_refuse:
-                # Refusal case: the answer must be EXACTLY the refusal string.
+                # Refusal case: the answer must match the configured refusal string.
                 checks["refusal_exact"] = answer.strip() == REFUSAL_MESSAGE
             else:
                 # Grounding case: the answer must contain all expected phrases.
@@ -147,7 +138,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
             # Retrieval-only case: note that generation was intentionally skipped.
             answer = "(generation skipped; retrieval spot check only)"
 
-        # The case passes only if EVERY check passed.
+        # The case passes only if every check passed.
         passed = all(checks.values())
         # Record the full structured result.
         results.append(
