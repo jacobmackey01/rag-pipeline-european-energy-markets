@@ -21,11 +21,11 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 - **Vector store:** ChromaDB with cosine distance and persistent local storage in `data/chroma`.
 - **Generation:** OpenAI Responses API. The default model is `gpt-5.6-luna`, with reasoning effort explicitly set to `low` for this short grounded-answer task. Override the model with `OPENAI_MODEL`. The request omits `temperature` because GPT-5.6 models do not support that parameter; repeatability is measured through the validation suite instead.
 - **Anti-hallucination:** the prompt says to answer only from retrieved context, cite source filenames, and return exactly `Not found in the provided documents.` when the context does not contain the answer.
-- **Validation:** the CLI includes grounding, refusal, retrieval-quality, citation-source, and corpus-checksum checks.
+- **Validation:** the CLI includes grounding, refusal, retrieval-quality, and citation-filename checks. SHA-256 verification of pinned source documents runs separately during download and ingestion.
 
 ### Why Low Reasoning Effort?
 
-Retrieval has already narrowed the evidence before generation begins, so the model's job is to produce a short grounded answer with source citations rather than perform open-ended research or multi-step tool use. Explicit `low` effort avoids GPT-5.6's default `medium` reasoning overhead for this latency-sensitive step. It is not a determinism or correctness guarantee: the grounding prompt, refusal behavior, citation-source check, and validation cases remain the controls that must be measured. The setting should be raised to `medium` only if representative validation questions show a material gain in answer completeness or grounding. This follows [OpenAI's guidance](https://developers.openai.com/api/docs/guides/latest-model) to choose reasoning effort from workload evidence rather than assuming higher is always better.
+Retrieval has already narrowed the evidence before generation begins, so the model's job is to produce a short grounded answer with source citations rather than perform open-ended research or multi-step tool use. Explicit `low` effort avoids GPT-5.6's default `medium` reasoning overhead for this latency-sensitive step. It is not a determinism or correctness guarantee: the grounding prompt, refusal behavior, citation-filename check, and validation cases remain the controls that must be measured. The setting should be raised to `medium` only if representative validation questions show a material gain in answer completeness or grounding. This follows [OpenAI's guidance](https://developers.openai.com/api/docs/guides/latest-model) to choose reasoning effort from workload evidence rather than assuming higher is always better.
 
 ## Setup
 
@@ -81,8 +81,9 @@ The validation command checks:
 - **Grounding:** known in-corpus questions should answer and cite the expected PDF.
 - **Refusal:** a plausible but absent energy-market question should return exactly `Not found in the provided documents.`
 - **Retrieval quality:** expected source PDFs should appear in the top-k retrieved chunks.
-- **Citation integrity:** any cited PDF filename must come from the retrieved chunk set.
-- **Corpus integrity:** downloaded PDFs must match the SHA256 checksums in `data/sources.json`.
+- **Citation filename check:** any cited PDF filename must come from the retrieved chunk set.
+
+Corpus integrity is enforced separately from `rag-pipeline validate`: both download and ingestion verify each PDF against the pinned SHA-256 checksum in `data/sources.json`.
 
 Validation cases:
 
