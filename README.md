@@ -2,6 +2,10 @@
 
 This project is a small, defensible retrieval-augmented generation pipeline over public European energy-market PDFs. It retrieves relevant document chunks, asks an LLM to answer only from those chunks, cites source filenames, and refuses with `Not found in the provided documents.` when the answer is absent.
 
+![Pipeline diagram: ingestion from a pinned PDF manifest through checksum verification, chunking, local embedding and a Chroma vector store; the query path from question through top-k retrieval to either a grounded answer or an exact refusal; and the four validation gates](docs/assets/rag_pipeline_architecture.svg)
+
+The diagram marks where each control sits: checksum verification on download and ingestion, the grounding instruction ahead of generation, and the four gates that `rag-pipeline validate` runs against the result.
+
 ## Corpus
 
 Option A is used, but narrowed to the Cobblestone Energy story: public European power and gas market documents from ENTSO-E and ACER.

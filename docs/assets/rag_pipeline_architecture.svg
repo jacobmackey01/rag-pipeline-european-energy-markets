@@ -1,0 +1,105 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title description">
+  <title id="title">Grounded RAG pipeline architecture</title>
+  <desc id="description">Three stages of the retrieval-augmented generation pipeline: ingestion from a pinned PDF manifest through checksum verification, chunking, local embedding and a Chroma vector store; the query path from question through top-k retrieval to a grounded answer or an exact refusal; and the four validation gates that check grounding, refusal, retrieval quality and citation filenames.</desc>
+  <rect width="100%" height="100%" fill="#fcfbf8"/>
+  <g font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
+  <text x="40" y="36" font-size="28px" font-weight="700" fill="#263238">Grounded RAG pipeline</text>
+  <text x="40" y="61" font-size="15px" fill="#59666d">Public European energy-market PDFs &#183; retrieval, grounded generation and the checks that gate it</text>
+  <rect x="40" y="95" width="1120" height="200" fill="#ffffff" stroke="#d7d4ce" stroke-width="1"/>
+  <rect x="40" y="315" width="1120" height="230" fill="#ffffff" stroke="#d7d4ce" stroke-width="1"/>
+  <rect x="40" y="565" width="1120" height="150" fill="#ffffff" stroke="#d7d4ce" stroke-width="1"/>
+  <text x="65" y="130" font-size="20px" font-weight="700" fill="#263238">Ingestion</text>
+  <text x="65" y="150" font-size="12px" fill="#59666d">Run once per corpus refresh. PDFs stay out of Git; the manifest and its checksums are committed.</text>
+  <rect x="65" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="77" y="200" font-size="14px" font-weight="700" fill="#263238">Source manifest</text>
+  <text x="77" y="220" font-size="11px" fill="#59666d">data/sources.json</text>
+  <text x="77" y="236" font-size="11px" fill="#59666d">5 ENTSO-E and ACER PDFs</text>
+  <rect x="285" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="297" y="200" font-size="14px" font-weight="700" fill="#263238">Download</text>
+  <text x="297" y="220" font-size="11px" fill="#59666d">SHA-256 verified against</text>
+  <text x="297" y="236" font-size="11px" fill="#59666d">the pinned checksum</text>
+  <rect x="505" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="517" y="200" font-size="14px" font-weight="700" fill="#263238">Chunk</text>
+  <text x="517" y="220" font-size="11px" fill="#59666d">220 tokenizer tokens,</text>
+  <text x="517" y="236" font-size="11px" fill="#59666d">40-token overlap</text>
+  <rect x="725" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="737" y="200" font-size="14px" font-weight="700" fill="#263238">Embed</text>
+  <text x="737" y="220" font-size="11px" fill="#59666d">all-MiniLM-L6-v2,</text>
+  <text x="737" y="236" font-size="11px" fill="#59666d">run locally</text>
+  <rect x="945" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="957" y="200" font-size="14px" font-weight="700" fill="#263238">Vector store</text>
+  <text x="957" y="220" font-size="11px" fill="#59666d">ChromaDB, cosine</text>
+  <text x="957" y="236" font-size="11px" fill="#59666d">persisted to data/chroma</text>
+  <line x1="255" y1="217" x2="279" y2="217" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="285,217 278,213 278,221" fill="#9aa6ac"/>
+  <line x1="475" y1="217" x2="499" y2="217" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="505,217 498,213 498,221" fill="#9aa6ac"/>
+  <line x1="695" y1="217" x2="719" y2="217" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="725,217 718,213 718,221" fill="#9aa6ac"/>
+  <line x1="915" y1="217" x2="939" y2="217" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="945,217 938,213 938,221" fill="#9aa6ac"/>
+  <text x="65" y="283" font-size="11px" fill="#6b7479">Chunks are cut from tokenizer offset mappings, so figures such as 5.25% and 2025-2026 survive intact; metadata records the page range each chunk spans.</text>
+  <text x="65" y="350" font-size="20px" font-weight="700" fill="#263238">Query</text>
+  <text x="65" y="370" font-size="12px" fill="#59666d">Retrieval narrows the evidence before generation, so the model writes a short grounded answer rather than researching.</text>
+  <rect x="65" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="77" y="415" font-size="14px" font-weight="700" fill="#263238">Question</text>
+  <text x="77" y="435" font-size="11px" fill="#59666d">natural language</text>
+  <rect x="247" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="259" y="415" font-size="14px" font-weight="700" fill="#263238">Embed query</text>
+  <text x="259" y="435" font-size="11px" fill="#59666d">same MiniLM model</text>
+  <rect x="429" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="441" y="415" font-size="14px" font-weight="700" fill="#263238">Retrieve</text>
+  <text x="441" y="435" font-size="11px" fill="#59666d">top-k chunks by</text>
+  <text x="441" y="451" font-size="11px" fill="#59666d">cosine distance</text>
+  <rect x="611" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="623" y="415" font-size="14px" font-weight="700" fill="#263238">Grounded prompt</text>
+  <text x="623" y="435" font-size="11px" fill="#59666d">answer only from</text>
+  <text x="623" y="451" font-size="11px" fill="#59666d">retrieved context</text>
+  <rect x="793" y="390" width="160" height="84" rx="4" fill="#fdf6f2" stroke="#c85a32" stroke-width="1.6"/>
+  <text x="805" y="415" font-size="14px" font-weight="700" fill="#263238">Generate</text>
+  <text x="805" y="435" font-size="11px" fill="#59666d">gpt-5.6-luna</text>
+  <text x="805" y="451" font-size="11px" fill="#59666d">reasoning effort low</text>
+  <rect x="975" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
+  <text x="987" y="415" font-size="14px" font-weight="700" fill="#263238">Output</text>
+  <text x="987" y="435" font-size="11px" fill="#59666d">one of two forms</text>
+  <line x1="225" y1="432" x2="241" y2="432" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="247,432 240,428 240,436" fill="#9aa6ac"/>
+  <line x1="407" y1="432" x2="423" y2="432" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="429,432 422,428 422,436" fill="#9aa6ac"/>
+  <line x1="589" y1="432" x2="605" y2="432" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="611,432 604,428 604,436" fill="#9aa6ac"/>
+  <line x1="771" y1="432" x2="787" y2="432" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="793,432 786,428 786,436" fill="#9aa6ac"/>
+  <line x1="953" y1="432" x2="969" y2="432" stroke="#9aa6ac" stroke-width="1.4"/>
+  <polygon points="975,432 968,428 968,436" fill="#9aa6ac"/>
+  <rect x="611" y="492" width="254" height="40" rx="4" fill="#f2f6f4" stroke="#a8c0b4" stroke-width="1"/>
+  <text x="623" y="510" font-size="12px" font-weight="700" fill="#33604a">Grounded answer</text>
+  <text x="623" y="525" font-size="11px" fill="#4a6d5c">cites source PDF filenames</text>
+  <rect x="881" y="492" width="254" height="40" rx="4" fill="#faf4ea" stroke="#d3b47c" stroke-width="1"/>
+  <text x="893" y="510" font-size="12px" font-weight="700" fill="#8a6420">Refusal</text>
+  <text x="893" y="525" font-size="11px" fill="#8a6420">Not found in the provided documents.</text>
+  <line x1="1055" y1="474" x2="1055" y2="486" stroke="#9aa6ac" stroke-width="1.4"/>
+  <line x1="738" y1="486" x2="1055" y2="486" stroke="#9aa6ac" stroke-width="1.4"/>
+  <line x1="738" y1="486" x2="738" y2="492" stroke="#9aa6ac" stroke-width="1.4"/>
+  <line x1="1008" y1="486" x2="1008" y2="492" stroke="#9aa6ac" stroke-width="1.4"/>
+  <text x="65" y="600" font-size="20px" font-weight="700" fill="#263238">Validation gates</text>
+  <text x="65" y="620" font-size="12px" fill="#59666d">rag-pipeline validate &#183; detailed output written to validation/results.json</text>
+  <rect x="65" y="640" width="260" height="58" rx="4" fill="#f7f9fa" stroke="#cfd6da" stroke-width="1"/>
+  <text x="77" y="661" font-size="13px" font-weight="700" fill="#263238">Grounding</text>
+  <text x="77" y="678" font-size="11px" fill="#59666d">in-corpus questions answer</text>
+  <text x="77" y="692" font-size="11px" fill="#59666d">and cite the expected PDF</text>
+  <rect x="341" y="640" width="260" height="58" rx="4" fill="#f7f9fa" stroke="#cfd6da" stroke-width="1"/>
+  <text x="353" y="661" font-size="13px" font-weight="700" fill="#263238">Refusal</text>
+  <text x="353" y="678" font-size="11px" fill="#59666d">a plausible but absent question</text>
+  <text x="353" y="692" font-size="11px" fill="#59666d">returns the exact refusal string</text>
+  <rect x="617" y="640" width="260" height="58" rx="4" fill="#f7f9fa" stroke="#cfd6da" stroke-width="1"/>
+  <text x="629" y="661" font-size="13px" font-weight="700" fill="#263238">Retrieval quality</text>
+  <text x="629" y="678" font-size="11px" fill="#59666d">the expected PDF appears</text>
+  <text x="629" y="692" font-size="11px" fill="#59666d">in the top-k retrieved chunks</text>
+  <rect x="893" y="640" width="260" height="58" rx="4" fill="#f7f9fa" stroke="#cfd6da" stroke-width="1"/>
+  <text x="905" y="661" font-size="13px" font-weight="700" fill="#263238">Citation filenames</text>
+  <text x="905" y="678" font-size="11px" fill="#59666d">any cited filename must come</text>
+  <text x="905" y="692" font-size="11px" fill="#59666d">from the retrieved chunk set</text>
+  <text x="65" y="745" font-size="12px" fill="#59666d">Corpus integrity sits outside these gates: download and ingestion each verify every PDF against its pinned SHA-256 checksum in data/sources.json.</text>
+  </g>
+</svg>
