@@ -7,6 +7,7 @@ import pytest
 from chromadb.config import Settings
 
 from rag_pipeline.config import AppConfig
+from rag_pipeline.embedding_context import CONTEXT_VERSION
 from rag_pipeline.documents import SourceDocument
 from rag_pipeline.retrieval_scope import source_scope
 from rag_pipeline import cli, pipeline, store
@@ -47,7 +48,7 @@ def retrieval_setup(tmp_path, monkeypatch):
     manifest.write_text(json.dumps([asdict(item) for item in CATALOG]))
     cfg = AppConfig(tmp_path, manifest, tmp_path / "raw", tmp_path / "chroma", "test", "embed", "gen", 220, 40)
     client = chromadb.EphemeralClient(Settings(anonymized_telemetry=False))
-    collection = client.create_collection("scope-regression", metadata={"hnsw:space":"cosine"})
+    collection = client.create_collection("scope-regression", metadata={"hnsw:space":"cosine", "embedding_context_version":CONTEXT_VERSION})
     collection.add(ids=["summer", "winter-1", "winter-2"],
                    embeddings=[[1.0,0.0],[0.1,1.0],[0.2,1.0]],
                    documents=["Winter adequacy discussion in Summer report", "Winter summary", "Winter risk"],
@@ -78,12 +79,11 @@ def test_missing_indexed_requested_report_returns_no_context(retrieval_setup):
     assert store.retrieve(cfg, "Winter Outlook 2025-2026?", embedder=embedder) == []
 
 
-def test_unknown_edition_fails_before_embedding(retrieval_setup):
+def test_unknown_edition_refuses_before_embedding(retrieval_setup):
     cfg, _, _ = retrieval_setup
     def fail_embed(texts):
         pytest.fail("Unrecognised editions must fail before embedding.")
-    with pytest.raises(ValueError, match="not in the manifest"):
-        store.retrieve(cfg, "Winter Outlook 2024-2025?", embedder=SimpleNamespace(embed=fail_embed))
+    assert store.retrieve(cfg, "Winter Outlook 2024-2025?", embedder=SimpleNamespace(embed=fail_embed)) == []
 
 
 def test_cli_and_pipeline_forward_source_selection(tmp_path, monkeypatch, capsys):
@@ -99,3 +99,24 @@ def test_cli_and_pipeline_forward_source_selection(tmp_path, monkeypatch, capsys
     cli.main()
     result = json.loads(capsys.readouterr().out)
     assert result["answer"] == "Not found in the provided documents."
+
+
+@pytest.mark.parametrize("command",["ask","retrieve"])
+@pytest.mark.parametrize("question",["Compare Winter Outlook 2024-2025 and Winter Outlook 2025-2026",
+                                    "What does the winter outlook for 2024-25 say?",
+                                    "ENTSO-E Winter 2024/2025 Outlook: adequacy risks?"])
+def test_missing_edition_cli_refuses_without_traceback(retrieval_setup,monkeypatch,capsys,command,question):
+    cfg,_,_ = retrieval_setup
+    monkeypatch.setattr(cli.AppConfig,"from_env",lambda:cfg)
+    monkeypatch.setattr("sys.argv",["rag-pipeline",command,question])
+    cli.main()
+    captured=capsys.readouterr()
+    assert "Not found in the provided documents." in captured.out
+    assert "Traceback" not in captured.err
+
+
+def test_old_embedding_index_requires_rebuild(retrieval_setup):
+    cfg,collection,embedder=retrieval_setup
+    collection.modify(metadata={"embedding_context_version":"passage-only"})
+    with pytest.raises(RuntimeError,match="ingest --reset"):
+        store.retrieve(cfg,"Adequacy?",embedder=embedder)

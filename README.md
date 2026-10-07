@@ -20,9 +20,9 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 
 ## Design Choices
 
-- **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`, run locally. Embeddings map semantically similar text close together, so a query can match related wording even without exact keyword overlap.
+- **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`, run locally. Every passage is embedded with a header containing its manifest document title, so report identity accompanies the passage's meaning. Stored evidence text and PDF page ranges are preserved.
 - **Chunking:** default 220 MiniLM tokenizer tokens with 40-token overlap. Chunks are built from the tokenizer's offset mappings, so they preserve the original PDF text instead of rebuilding it; figures such as `5.25%` and `2025-2026` are not mangled. Chunking runs over the whole PDF text, not page-by-page, and metadata records the page range each chunk spans.
-- **Vector store:** ChromaDB with cosine distance and persistent local storage in `data/chroma`.
+- **Retrieval:** ChromaDB stores contextual embeddings and evidence in `data/chroma`. Hybrid ranking combines cosine similarity with BM25 over document titles and passage text; titles receive twice the passage weight in the lexical score. Normalized lexical and semantic scores receive equal final weights. Ranking currently reads all eligible records locally, which suits this small corpus.
 - **Document scope:** queries that name a dated seasonal report, such as `Winter Outlook 2025-2026`, search only matching manifest PDFs before ranking passages. General questions retain cross-document search. Use `--source` to select a manifest filename explicitly.
 - **Generation:** OpenAI Responses API. The default model is `gpt-5.6-luna`, with reasoning effort explicitly set to `low` for this short grounded-answer task. Override the model with `OPENAI_MODEL`. The request omits `temperature` because GPT-5.6 models do not support that parameter; repeatability is measured through the validation suite instead.
 - **Anti-hallucination:** the prompt says to answer only from retrieved context, cite source filenames, and return exactly `Not found in the provided documents.` when the context does not contain the answer.
@@ -62,6 +62,8 @@ Build the vector index:
 rag-pipeline ingest --reset
 ```
 
+Rebuild an existing passage-only index with this command before querying the updated pipeline. The index records its embedding format and rejects stale passage-only vectors. Chunking reserves space for the title header within MiniLM's 256-token limit; the verified corpus remains at 392 passages, with a maximum contextual length of 243 tokens. See [Sentence Transformers' sequence-length guidance](https://www.sbert.net/examples/sentence_transformer/applications/computing-embeddings/README.html).
+
 Ask a question:
 
 ```powershell
@@ -80,7 +82,7 @@ Search a specific report when the question does not name its dated title:
 rag-pipeline ask "What are the adequacy risks?" --source entsoe-winter-outlook-2025-2026.pdf --show-chunks
 ```
 
-`ask` and `retrieve` accept repeated `--source` options for comparisons. Explicit filenames override automatic title matching. Dated seasonal titles accept hyphens, en/em dashes, nonbreaking hyphens, and slash-separated years. An unknown edition or filename is rejected; a matching report with no indexed chunks returns no context instead of substituting another document. The filter uses Chroma's [metadata filtering](https://docs.trychroma.com/docs/querying-collections/metadata-filtering).
+`ask` and `retrieve` accept repeated `--source` options for comparisons. Explicit filenames override automatic title matching. Dated seasonal titles accept hyphens, en/em dashes, nonbreaking hyphens, slash-separated years, `outlook for YYYY-YY`, and `Winter YYYY/YYYY Outlook`. A question requesting an absent edition returns the normal refusal, including comparisons that require an unavailable edition. An invalid `--source` filename gets a CLI argument error; a matching report with no indexed chunks returns no context. The explicit filter uses Chroma's [metadata filtering](https://docs.trychroma.com/docs/querying-collections/metadata-filtering). Questions such as “latest winter outlook” use hybrid ranking across the available corpus; they do not establish which report is globally newest.
 
 Run validation:
 
@@ -110,10 +112,10 @@ Corpus integrity is enforced separately from `rag-pipeline validate`: both downl
 
 Validation cases:
 
-- `grounding_acer_2026_market_developments`: retrieves `acer-gas-electricity-key-developments-2026.pdf` and checks for specific market-monitoring details such as LNG, Russian gas imports, and network-code work.
-- `grounding_acer_see_cross_zonal_capacity`: retrieves `acer-see-cross-zonal-capacity-flexibility-2026.pdf` and checks for specific detail on price spikes, Greece-Italy HVDC capacity, and cross-zonal capacity.
+- `grounding_acer_2026_market_developments`: explicitly asks for planned monitoring and network-code work in 2026, checks that relevant facts were retrieved, and requires LNG-market and Russian-gas-import detail in the answer.
+- `grounding_acer_see_cross_zonal_capacity`: explicitly asks about the Greece-Italy HVDC link during the 2024 price spikes, checks that the retrieved text mentions both countries and HVDC, and requires that detail in the answer. The country names are checked separately so valid “Italy and Greece” wording is accepted.
 - `refusal_plausible_absent_poland_peak_demand`: asks an on-topic but absent question about Poland's projected Winter 2025-2026 peak electricity demand in GW and requires the exact refusal string.
-- `retrieval_quality_entsoe_winter_outlook`: requires nonempty retrieval from the named Winter Outlook edition and checks that every returned chunk comes from that report. The earlier unrestricted search returned only Summer Outlook passages; document scoping prevents that substitution.
+- `retrieval_quality_entsoe_winter_outlook` and `retrieval_winter_paraphrase_1`–`3`: test the original query and three rewordings, with automatic document filtering disabled. Each requires nonempty retrieval with every returned passage from the Winter report. These exercise contextual hybrid ranking directly.
 
 Detailed local validation output is written to `validation/results.json`, which is ignored by Git.
 
@@ -147,4 +149,4 @@ This command calls Decisions on fixed examples in `data/claim_support_cases.json
 
 The report at `validation/claim-support-results.json` records false acceptances, supported claims flagged for review, API availability, latency, and token usage. It exits unsuccessfully if an API check is unavailable or the augmented check disagrees with a label. Labels are provisional author judgements, not independent labels or a held-out benchmark. Do not tune thresholds on these cases and report the same cases as an independent evaluation. Before using results as application evidence, have a reviewer label additional energy examples without seeing the API scores, choose thresholds on a separate development set, and measure errors and review workload on held-out cases.
 
-The [7 October 2026 diagnostic](docs/decisions-evaluation.md) records the initial comparison and the remaining failures in the existing full-pipeline validation suite.
+The [contextual retrieval and source audit](docs/retrieval-and-claim-audit.md) records the current seven-case validation run, the unfiltered paraphrase comparison, and the audit of a real uncertain claim. The [initial Decisions diagnostic](docs/decisions-evaluation.md) retains the earlier results and their limitations.

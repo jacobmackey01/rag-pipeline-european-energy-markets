@@ -14,7 +14,7 @@ import json
 # `asdict` converts a dataclass instance into a plain dict (for JSON output).
 from dataclasses import asdict, replace
 
-from rag_pipeline.config import AppConfig
+from rag_pipeline.config import AppConfig, REFUSAL_MESSAGE
 from rag_pipeline.documents import download_sources
 from rag_pipeline.pipeline import ask_question, build_index
 from rag_pipeline.store import retrieve
@@ -27,7 +27,8 @@ def _print_chunks(chunks) -> None:
     # Number the chunks from 1.
     for index, chunk in enumerate(chunks, start=1):
         # Header line: the citation label and the similarity distance (4 d.p.).
-        print(f"\n[{index}] {chunk.citation_label} | distance={chunk.distance:.4f}")
+        ranking = f" | hybrid={chunk.retrieval_score:.4f}" if chunk.retrieval_score is not None else ""
+        print(f"\n[{index}] {chunk.citation_label} | distance={chunk.distance:.4f}{ranking}")
         # Flatten newlines so each preview is one block, then truncate to 700 chars.
         preview = chunk.text.replace("\n", " ")
         print(preview[:700] + ("..." if len(preview) > 700 else ""))
@@ -121,13 +122,22 @@ def main() -> None:
 
     # retrieve: print the top-k chunks for inspection.
     if args.command == "retrieve":
-        chunks = retrieve(config, args.question, top_k=args.top_k, sources=args.source)
+        try:
+            chunks = retrieve(config, args.question, top_k=args.top_k, sources=args.source)
+        except ValueError as exc:
+            parser.error(str(exc))
+        if not chunks:
+            print(REFUSAL_MESSAGE)
+            return
         _print_chunks(chunks)
         return
 
     # ask: run full RAG and print the answer (and optionally the chunks / JSON).
     if args.command == "ask":
-        result = ask_question(config, args.question, top_k=args.top_k, sources=args.source)
+        try:
+            result = ask_question(config, args.question, top_k=args.top_k, sources=args.source)
+        except ValueError as exc:
+            parser.error(str(exc))
         # JSON mode: serialise everything, converting chunk dataclasses to dicts.
         if args.json:
             serializable = {

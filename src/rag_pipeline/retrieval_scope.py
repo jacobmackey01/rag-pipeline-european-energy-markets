@@ -9,14 +9,20 @@ from rag_pipeline.documents import SourceDocument
 
 
 OUTLOOK_REFERENCE = re.compile(
-    r"\b(winter|summer)\s+outlook\s+(\d{4})(?:\s*[-–—‑/]\s*(\d{4}|\d{2}))?\b",
+    r"\b(winter|summer)\s+(?:outlook(?:\s+for)?\s+(\d{4})(?:\s*[-–—‑/]\s*(\d{4}|\d{2}))?"
+    r"|(\d{4})(?:\s*[-–—‑/]\s*(\d{4}|\d{2}))?\s+outlook)\b",
     re.IGNORECASE,
 )
 
 
+class MissingReportError(ValueError):
+    """The question requests an edition absent from the corpus."""
+
+
 def _report_key(match: re.Match[str]) -> tuple[str, int, int | None]:
-    start = int(match.group(2))
-    end = int(match.group(3)) if match.group(3) else None
+    start = int(match.group(2) or match.group(4))
+    end_text = match.group(3) if match.group(2) else match.group(5)
+    end = int(end_text) if end_text else None
     if end is not None and end < 100:
         end += (start // 100) * 100
     return match.group(1).lower(), start, end
@@ -29,8 +35,8 @@ def source_scope(
 ) -> list[str] | None:
     """Explicit filenames override inferred dated Outlook references.
 
-    Broad questions have no scope. An unavailable named edition is an error;
-    silently substituting a different edition would violate the request.
+    Broad questions have no scope. An unavailable named edition raises a typed
+    error that retrieval converts to no context and the pipeline's refusal.
     """
     if sources is not None:
         if not sources:
@@ -49,6 +55,6 @@ def source_scope(
                     if (title := OUTLOOK_REFERENCE.search(item.title))
                     and _report_key(title) == _report_key(reference)]
         if not matching:
-            raise ValueError(f"Report not in the manifest: {reference.group(0)}")
+            raise MissingReportError(f"Report not in the manifest: {reference.group(0)}")
         selected.extend(matching)
     return list(dict.fromkeys(selected))

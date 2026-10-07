@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="780" viewBox="0 0 1200 780" role="img" aria-labelledby="title description">
   <title id="title">Grounded RAG pipeline architecture</title>
-  <desc id="description">Three stages of the retrieval-augmented generation pipeline: ingestion from a pinned PDF manifest through checksum verification, chunking, local embedding and a Chroma vector store; the query path from question through top-k retrieval to a grounded answer or an exact refusal; and the four validation gates that check grounding, refusal, retrieval quality and citation filenames.</desc>
+  <desc id="description">Three stages of the retrieval-augmented generation pipeline: ingestion from a pinned PDF manifest through checksum verification, chunking, local embedding and a Chroma vector store; the query path from question through hybrid top-k retrieval to a grounded answer or an exact refusal; and the four validation gates that check grounding, refusal, retrieval quality and citation filenames.</desc>
   <rect width="100%" height="100%" fill="#fcfbf8"/>
   <g font-family="system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif">
   <text x="40" y="36" font-size="28px" font-weight="700" fill="#263238">Grounded RAG pipeline</text>
@@ -25,7 +25,7 @@
   <rect x="725" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
   <text x="737" y="200" font-size="14px" font-weight="700" fill="#263238">Embed</text>
   <text x="737" y="220" font-size="11px" fill="#59666d">all-MiniLM-L6-v2,</text>
-  <text x="737" y="236" font-size="11px" fill="#59666d">run locally</text>
+  <text x="737" y="236" font-size="11px" fill="#59666d">title + passage, local</text>
   <rect x="945" y="175" width="190" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
   <text x="957" y="200" font-size="14px" font-weight="700" fill="#263238">Vector store</text>
   <text x="957" y="220" font-size="11px" fill="#59666d">ChromaDB, cosine</text>
@@ -50,7 +50,7 @@
   <rect x="429" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
   <text x="441" y="415" font-size="14px" font-weight="700" fill="#263238">Retrieve</text>
   <text x="441" y="435" font-size="11px" fill="#59666d">top-k chunks by</text>
-  <text x="441" y="451" font-size="11px" fill="#59666d">cosine distance</text>
+  <text x="441" y="451" font-size="11px" fill="#59666d">hybrid score</text>
   <rect x="611" y="390" width="160" height="84" rx="4" fill="#ffffff" stroke="#cfd6da" stroke-width="1"/>
   <text x="623" y="415" font-size="14px" font-weight="700" fill="#263238">Grounded prompt</text>
   <text x="623" y="435" font-size="11px" fill="#59666d">answer only from</text>

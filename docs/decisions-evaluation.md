@@ -1,5 +1,7 @@
 # Decisions claim-support diagnostic — 7 October 2026
 
+This document records earlier diagnostic snapshots. The subsequent [contextual retrieval and source audit](retrieval-and-claim-audit.md) reports the current implementation, paraphrase regressions, corrected validation questions, and chart review.
+
 The optional support checker flagged all seven unsupported examples that passed the existing filename check, and accepted all three supported examples in this run. These are provisional author-labelled cases based on excerpts from a checksum-verified ACER report, not an independent benchmark. The result supports keeping an optional review experiment; it does not establish production accuracy or a reduction in analyst workload.
 
 | Outcome on the same 11 answers | Filename check | Filename plus support review |

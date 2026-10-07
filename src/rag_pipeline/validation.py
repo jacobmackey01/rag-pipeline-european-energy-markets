@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -33,6 +34,8 @@ class ValidationCase:
     # False to skip the (paid) LLM call and only check retrieval.
     generate_answer: bool = True
     allowed_sources: tuple[str, ...] = ()
+    infer_source_scope: bool = True
+    expected_context_phrases: tuple[str, ...] = ()
 
 
 # The structured outcome of running one case (this is what gets saved to JSON).
@@ -57,16 +60,18 @@ VALIDATION_CASES = (
     # a few specific phrases that prove the real detail was found.
     ValidationCase(
         name="grounding_acer_2026_market_developments",
-        question="What does ACER say about key developments in European electricity and gas markets in 2026?",
+        question="According to ACER's 2026 key-developments report, which monitoring activities and network-code updates are planned for 2026, including the LNG market and Russian gas imports?",
         expected_sources=("acer-gas-electricity-key-developments-2026.pdf",),
         expected_phrases=("Russian gas imports", "LNG market", "network codes"),
+        expected_context_phrases=("Russian gas", "LNG", "network codes"),
     ),
     # Case 2: another grounding test on a different document and topic.
     ValidationCase(
         name="grounding_acer_see_cross_zonal_capacity",
-        question="What does ACER say about cross-zonal capacity and flexibility in Southeast Europe?",
+        question="What does ACER say about cross-zonal capacity and flexibility in Southeast Europe, including the role of the HVDC interconnection between Greece and Italy during the summer 2024 price spikes?",
         expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
-        expected_phrases=("price spikes", "Greece and Italy", "cross-zonal capacity"),
+        expected_phrases=("price spikes", "Greece", "Italy", "HVDC", "cross-zonal capacity"),
+        expected_context_phrases=("Greece", "Italy", "HVDC"),
     ),
     # Case 3: the REFUSAL test — a plausible but ABSENT question. The whole point
     # of the anti-hallucination story: it must refuse, not invent a number.
@@ -86,7 +91,22 @@ VALIDATION_CASES = (
         expected_sources=("entsoe-winter-outlook-2025-2026.pdf",),
         generate_answer=False,
         allowed_sources=("entsoe-winter-outlook-2025-2026.pdf",),
+        infer_source_scope=False,
     ),
+)
+
+VALIDATION_CASES += tuple(
+    ValidationCase(
+        name=f"retrieval_winter_paraphrase_{index}", question=question,
+        expected_sources=("entsoe-winter-outlook-2025-2026.pdf",),
+        allowed_sources=("entsoe-winter-outlook-2025-2026.pdf",),
+        generate_answer=False, infer_source_scope=False,
+    )
+    for index, question in enumerate((
+        "What does the winter outlook for 2025-26 say about European adequacy?",
+        "ENTSO-E Winter 2025/2026 Outlook: adequacy risks?",
+        "What does the latest winter outlook say about European adequacy?",
+    ), start=1)
 )
 
 
@@ -104,7 +124,7 @@ def _source_check(chunks: list[RetrievedChunk], expected_sources: tuple[str, ...
 # Check that the answer contains every expected phrase (case-insensitive).
 def _phrase_check(answer: str, phrases: tuple[str, ...]) -> bool:
     # Lower-case the answer once for case-insensitive matching.
-    lower_answer = answer.lower()
+    lower_answer = re.sub(r"\s+", " ", answer.lower())
     # All phrases must be present as substrings.
     return all(phrase.lower() in lower_answer for phrase in phrases)
 
@@ -115,7 +135,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
     # Process each case in turn.
     for case in VALIDATION_CASES:
         # Always run retrieval, so source quality is visible even for refusal cases.
-        chunks = retrieve(config, case.question, top_k=top_k)
+        chunks = retrieve(config, case.question, top_k=top_k, infer_scope=case.infer_source_scope)
         # The sources and human-readable labels of what we retrieved.
         retrieved_sources = [chunk.source for chunk in chunks]
         retrieved_labels = [chunk.citation_label for chunk in chunks]
@@ -128,6 +148,10 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
         if case.allowed_sources:
             checks["retrieval_source_scope"] = bool(chunks) and all(
                 chunk.source in case.allowed_sources for chunk in chunks
+            )
+        if case.expected_context_phrases:
+            checks["retrieval_expected_content"] = _phrase_check(
+                "\n".join(chunk.text for chunk in chunks), case.expected_context_phrases
             )
 
         # Default answer text.
