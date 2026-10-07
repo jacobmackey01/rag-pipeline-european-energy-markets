@@ -20,6 +20,7 @@ from rag_pipeline.pipeline import ask_question, build_index
 from rag_pipeline.store import retrieve
 from rag_pipeline.support_evaluation import evaluate_support
 from rag_pipeline.validation import run_validation, write_validation_results
+from rag_pipeline.blind_labels import prepare_blind_rows, write_blind_csv
 
 
 # Helper to print retrieved chunks compactly (used by `retrieve` and `ask --show-chunks`).
@@ -85,9 +86,24 @@ def main() -> None:
     support_parser = subparsers.add_parser("evaluate-support", help="Compare support checks on fixed energy examples (calls Decisions).")
     support_parser.add_argument("--cases", default="data/claim_support_cases.json")
     support_parser.add_argument("--output", default="validation/claim-support-results.json")
+    labels_parser = subparsers.add_parser("export-labels", help="Export blank human labels and cited evidence from saved answers; no API calls.")
+    labels_parser.add_argument("--answers", required=True, help="JSON list of answers with question, answer and retrieved_chunks.")
+    labels_parser.add_argument("--output", default="validation/labels/energy-claims-blind.csv")
+    labels_parser.add_argument("--count", type=int, default=50)
+    labels_parser.add_argument("--seed", type=int, default=20261007)
 
     # Parse whatever the user typed into an `args` object.
     args = parser.parse_args()
+    if args.command == "export-labels":
+        from pathlib import Path
+        try:
+            answers = json.loads(Path(args.answers).read_text(encoding="utf-8"))
+            rows = prepare_blind_rows(answers, count=args.count, seed=args.seed)
+            write_blind_csv(rows, Path(args.output))
+        except (ValueError, KeyError, TypeError, OSError):
+            parser.error("Could not export labels: check the saved-answer schema, paths and available unit count.")
+        print(f"Exported {len(rows)} claim units with blank labels and no model scores.")
+        return
     # Build the configuration (loads .env files, reads env vars).
     config = AppConfig.from_env()
     if getattr(args, "check_support", None) is not None:
@@ -169,8 +185,9 @@ def main() -> None:
         write_validation_results(results, config.root_dir / args.output)
         # Print a per-case summary to the terminal.
         for result in results:
-            status = "PASS" if result.passed else "FAIL"
-            print(f"{status} {result.name}")
+            print(f"{result.status} {result.name} (top-k {result.retrieval_top_k})")
+            if result.xfail_reason:
+                print(f"  - known gap: {result.xfail_reason}")
             # List each individual check and its result.
             for name, passed in result.checks.items():
                 print(f"  - {name}: {'PASS' if passed else 'FAIL'}")
@@ -179,7 +196,8 @@ def main() -> None:
                 for note in result.notes:
                     print(f"  - note: {note}")
         # If any case failed, exit with code 1 so CI/automation can detect it.
-        failures = [result for result in results if not result.passed]
+        # An unexpected pass requires reviewing/removing the known-failure marker.
+        failures = [result for result in results if result.status in {"FAIL", "XPASS"}]
         if failures:
             raise SystemExit(1)
         return

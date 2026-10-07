@@ -1,6 +1,6 @@
 # Contextual retrieval and source audit — 7 October 2026
 
-The updated retrieval returns four Winter passages for each of the four supplied questions, with document filtering disabled. Contextual headers alone did not reliably solve the failure; hybrid keyword and vector ranking was needed. All 71 offline tests pass, and the latest seven-case live validation run passes. These are regression results on known cases, not a held-out retrieval benchmark.
+The updated retrieval returns four Winter passages for each of the four supplied questions, with document filtering disabled. Contextual headers alone did not reliably solve the failure; hybrid keyword and vector ranking was needed. These are regression results on known cases, not a held-out retrieval benchmark. The earlier 71-test, seven-case result replaced two broad questions with specific ones and therefore obscured remaining recall gaps. The broad questions are now restored alongside the specific cases.
 
 | Query form | Passage-only cosine | Contextual cosine | Contextual hybrid |
 | --- | ---: | ---: | ---: |
@@ -27,8 +27,22 @@ Source: [ACER Key Developments in European Electricity and Gas Markets 2026](htt
 
 The frozen retrieved excerpts did not contain the required “Greece and Italy” wording or the complete HVDC discussion. The relevant passage exists on page 18 of the Southeast Europe report; the earlier broad question did not reliably retrieve it. The generator was not shown the fact that the test demanded. The broad question also did not explicitly request that particular link, making the exact-phrase expectation a poor completeness criterion.
 
-The validation question now explicitly asks about the HVDC interconnection and summer 2024 price spikes. Retrieval must contain Greece, Italy, and HVDC before the answer is assessed; the answer must include the link and the original price-spike/cross-zonal-capacity detail. Country names are checked separately to accept either ordering. The monitoring case was likewise clarified to ask for the planned activities its existing assertions required, after hybrid retrieval correctly produced a general market summary for the old broad wording. Relevant-content checks were added to both cases; no case was deleted or support threshold lowered.
+The previous update substituted a specific HVDC question and a specific monitoring question for the original broad cases. Putting expected facts in a keyword query makes them easier to retrieve and is not evidence that broad-query recall improved. Both original questions and their phrase expectations are restored as visible known failures. The specific questions remain as additional cases. Broad exact-phrase expectations are brittle, but rewriting the questions was not an adequate way to resolve that limitation.
 
-The latest live run passes both grounding cases, their context checks, citation checks, and Decisions review; it also preserves the exact absent-Poland-demand refusal and passes all four unfiltered Winter regressions. A separate live “latest winter outlook” answer retrieves four Winter passages and passes citation integrity and support review. Model-generated answers and scores can vary between runs.
+## Recall diagnostic with unchanged ranking
 
-The PR remains a draft. Independent labels on real generated claims, held-out threshold selection, and comparison with a local NLI model remain outstanding. The 11 easy diagnostic examples are still described as provisional author-labelled cases.
+The same contextual hybrid index was queried without document filtering. No weights or query rewrites were changed for this diagnostic.
+
+| Question | Required passage rank | Present at k=4 | k=6 | k=8 | k=12 |
+| --- | ---: | --- | --- | --- | --- |
+| What does ACER say about key developments in European electricity and gas markets in 2026? | 5 (network codes) | No | Yes | Yes | Yes |
+| What does ACER say about cross-zonal capacity and flexibility in Southeast Europe? | 5 (page-18 HVDC) | No | Yes | Yes | Yes |
+| Why did Southeast European prices spike in summer 2024? | 10 (page-18 HVDC) | No | No | No | Yes |
+
+Increasing top-k to six or eight includes the missing passages for both broad questions, but does not recover the HVDC detail for the price-spike question. A retrieval-only top-12 probe records that distinction. Passing this probe establishes passage presence, not that a generated answer will include or correctly interpret the detail. Production defaults remain four chunks; the recall gap is still open. A general reranker has not been installed or evaluated in this round.
+
+Known failures only cover content and phrase expectations. The JSON retains the actual failed checks and `passed: false`, with `status: XFAIL` and a reason. API support failures and citation failures cannot be masked by a recall marker. Unexpected passes require review of the marker. Model-generated answers and scores can vary between runs.
+
+The restored suite has 82 passing offline tests. A live run with `validate --no-check-support` reports eight `PASS` and three `XFAIL`, with no `FAIL` or `XPASS`. The known failures are the two original broad questions and the default-depth price-spike recall case. The specific grounding questions, exact Poland refusal, four unfiltered Winter cases and top-12 recall probe pass. This run deliberately did not reassess Decisions; it verifies retrieval, generated phrase coverage, citation integrity and refusal behavior. It is not an all-green retrieval result.
+
+The PR remains a draft. A fresh [50-unit blinded batch](blinded-label-protocol.md) has been prepared with blank human labels and no model scores computed. Jacob must label it before scoring, threshold selection or comparison with local NLI. The 11 easy diagnostic examples remain provisional author-labelled cases. Chart extraction is deferred.

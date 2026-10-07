@@ -112,12 +112,12 @@ Corpus integrity is enforced separately from `rag-pipeline validate`: both downl
 
 Validation cases:
 
-- `grounding_acer_2026_market_developments`: explicitly asks for planned monitoring and network-code work in 2026, checks that relevant facts were retrieved, and requires LNG-market and Russian-gas-import detail in the answer.
-- `grounding_acer_see_cross_zonal_capacity`: explicitly asks about the Greece-Italy HVDC link during the 2024 price spikes, checks that the retrieved text mentions both countries and HVDC, and requires that detail in the answer. The country names are checked separately so valid “Italy and Greece” wording is accepted.
+- `grounding_acer_2026_market_developments` and `grounding_acer_see_cross_zonal_capacity`: retain the original broad questions and phrase expectations. They are known failures at top-k four: the required passages rank fifth. The specific monitoring and HVDC questions remain as additional cases, not replacements.
+- `retrieval_see_price_spike_top4`: checks whether the unprompted summer-price-spike question retrieves the Greece-Italy HVDC evidence. It is a known recall failure; the relevant passage ranks tenth. A separate `top12_probe` case checks a larger context without changing the default retrieval depth.
 - `refusal_plausible_absent_poland_peak_demand`: asks an on-topic but absent question about Poland's projected Winter 2025-2026 peak electricity demand in GW and requires the exact refusal string.
 - `retrieval_quality_entsoe_winter_outlook` and `retrieval_winter_paraphrase_1`–`3`: test the original query and three rewordings, with automatic document filtering disabled. Each requires nonempty retrieval with every returned passage from the Winter report. These exercise contextual hybrid ranking directly.
 
-Detailed local validation output is written to `validation/results.json`, which is ignored by Git.
+Validation prints `PASS`, `XFAIL`, `XPASS` or `FAIL`, including each check and the known-gap reason. `XFAIL` only covers the explicitly named content/phrase checks; it preserves `passed: false` in JSON. Citation and support failures remain `FAIL`. Unexpected passes (`XPASS`) also exit unsuccessfully so the marker must be reviewed. Known cases and the larger-context probe record their explicit retrieval depth; `--top-k` applies to cases without an override. Detailed output is written to `validation/results.json`, which is ignored by Git.
 
 ## Decisions Claim-Support Review
 
@@ -149,4 +149,4 @@ This command calls Decisions on fixed examples in `data/claim_support_cases.json
 
 The report at `validation/claim-support-results.json` records false acceptances, supported claims flagged for review, API availability, latency, and token usage. It exits unsuccessfully if an API check is unavailable or the augmented check disagrees with a label. Labels are provisional author judgements, not independent labels or a held-out benchmark. Do not tune thresholds on these cases and report the same cases as an independent evaluation. Before using results as application evidence, have a reviewer label additional energy examples without seeing the API scores, choose thresholds on a separate development set, and measure errors and review workload on held-out cases.
 
-The [contextual retrieval and source audit](docs/retrieval-and-claim-audit.md) records the current seven-case validation run, the unfiltered paraphrase comparison, and the audit of a real uncertain claim. The [initial Decisions diagnostic](docs/decisions-evaluation.md) retains the earlier results and their limitations.
+The [contextual retrieval and source audit](docs/retrieval-and-claim-audit.md) records the unfiltered paraphrase comparison, restored recall gaps, and audit of a real uncertain claim. The [blinded labelling protocol](docs/blinded-label-protocol.md) describes the fresh 50-unit batch and the offline `export-labels` command. Human labels must be frozen before scoring or the NLI comparison. The [initial Decisions diagnostic](docs/decisions-evaluation.md) retains the earlier results and their limitations.

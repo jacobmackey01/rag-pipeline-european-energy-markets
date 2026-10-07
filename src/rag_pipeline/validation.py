@@ -36,6 +36,9 @@ class ValidationCase:
     allowed_sources: tuple[str, ...] = ()
     infer_source_scope: bool = True
     expected_context_phrases: tuple[str, ...] = ()
+    retrieval_top_k: int | None = None
+    xfail_reason: str = ""
+    expected_failure_checks: tuple[str, ...] = ()
 
 
 # The structured outcome of running one case (this is what gets saved to JSON).
@@ -52,6 +55,18 @@ class ValidationResult:
     # Any explanatory notes (e.g. why a citation check failed).
     notes: list[str]
     claim_support: dict[str, object] = field(default_factory=dict)
+    retrieval_top_k: int = 4
+    xfail_reason: str = ""
+    expected_failure_checks: tuple[str, ...] = ()
+
+    @property
+    def status(self) -> str:
+        failures = {name for name, passed in self.checks.items() if not passed}
+        if not self.xfail_reason:
+            return "PASS" if self.passed else "FAIL"
+        if not failures:
+            return "XPASS"
+        return "XFAIL" if failures <= set(self.expected_failure_checks) else "FAIL"
 
 
 # The actual test cases. Kept small and hand-picked so each result is explainable.
@@ -60,6 +75,16 @@ VALIDATION_CASES = (
     # a few specific phrases that prove the real detail was found.
     ValidationCase(
         name="grounding_acer_2026_market_developments",
+        question="What does ACER say about key developments in European electricity and gas markets in 2026?",
+        expected_sources=("acer-gas-electricity-key-developments-2026.pdf",),
+        expected_phrases=("Russian gas imports", "LNG market", "network codes"),
+        expected_context_phrases=("network codes",),
+        retrieval_top_k=4,
+        xfail_reason="At top-k 4 the network-code passage ranks fifth. The original broad question and phrase expectation remain visible.",
+        expected_failure_checks=("expected_phrases", "retrieval_expected_content"),
+    ),
+    ValidationCase(
+        name="grounding_acer_2026_monitoring_specific",
         question="According to ACER's 2026 key-developments report, which monitoring activities and network-code updates are planned for 2026, including the LNG market and Russian gas imports?",
         expected_sources=("acer-gas-electricity-key-developments-2026.pdf",),
         expected_phrases=("Russian gas imports", "LNG market", "network codes"),
@@ -68,6 +93,16 @@ VALIDATION_CASES = (
     # Case 2: another grounding test on a different document and topic.
     ValidationCase(
         name="grounding_acer_see_cross_zonal_capacity",
+        question="What does ACER say about cross-zonal capacity and flexibility in Southeast Europe?",
+        expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
+        expected_phrases=("price spikes", "Greece and Italy", "cross-zonal capacity"),
+        expected_context_phrases=("Greece", "Italy", "HVDC"),
+        retrieval_top_k=4,
+        xfail_reason="At top-k 4 the page-18 Greece-Italy HVDC passage ranks fifth; the exact-phrase expectation is also brittle for this broad question.",
+        expected_failure_checks=("expected_phrases", "retrieval_expected_content"),
+    ),
+    ValidationCase(
+        name="grounding_acer_see_hvdc_specific",
         question="What does ACER say about cross-zonal capacity and flexibility in Southeast Europe, including the role of the HVDC interconnection between Greece and Italy during the summer 2024 price spikes?",
         expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
         expected_phrases=("price spikes", "Greece", "Italy", "HVDC", "cross-zonal capacity"),
@@ -92,6 +127,26 @@ VALIDATION_CASES = (
         generate_answer=False,
         allowed_sources=("entsoe-winter-outlook-2025-2026.pdf",),
         infer_source_scope=False,
+    ),
+)
+
+# Keep the default recall gap separate from an explicitly larger-context probe.
+VALIDATION_CASES += (
+    ValidationCase(
+        name="retrieval_see_price_spike_top4",
+        question="Why did Southeast European prices spike in summer 2024?",
+        expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
+        expected_context_phrases=("Greece", "Italy", "HVDC"),
+        generate_answer=False, infer_source_scope=False, retrieval_top_k=4,
+        xfail_reason="The page-18 HVDC passage ranks tenth; top-k 6 or 8 still misses it.",
+        expected_failure_checks=("retrieval_expected_content",),
+    ),
+    ValidationCase(
+        name="retrieval_see_price_spike_top12_probe",
+        question="Why did Southeast European prices spike in summer 2024?",
+        expected_sources=("acer-see-cross-zonal-capacity-flexibility-2026.pdf",),
+        expected_context_phrases=("Greece", "Italy", "HVDC"),
+        generate_answer=False, infer_source_scope=False, retrieval_top_k=12,
     ),
 )
 
@@ -135,7 +190,8 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
     # Process each case in turn.
     for case in VALIDATION_CASES:
         # Always run retrieval, so source quality is visible even for refusal cases.
-        chunks = retrieve(config, case.question, top_k=top_k, infer_scope=case.infer_source_scope)
+        case_top_k = case.retrieval_top_k if case.retrieval_top_k is not None else top_k
+        chunks = retrieve(config, case.question, top_k=case_top_k, infer_scope=case.infer_source_scope)
         # The sources and human-readable labels of what we retrieved.
         retrieved_sources = [chunk.source for chunk in chunks]
         retrieved_labels = [chunk.citation_label for chunk in chunks]
@@ -198,6 +254,9 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
                 checks=checks,
                 notes=notes,
                 claim_support=support,
+                retrieval_top_k=case_top_k,
+                xfail_reason=case.xfail_reason,
+                expected_failure_checks=case.expected_failure_checks,
             )
         )
     # Return all results.
@@ -210,6 +269,6 @@ def write_validation_results(results: list[ValidationResult], path: Path) -> Non
     path.parent.mkdir(parents=True, exist_ok=True)
     # `asdict` turns each dataclass result into a plain dict; dump as pretty JSON.
     path.write_text(
-        json.dumps([asdict(result) for result in results], indent=2),
+        json.dumps([{**asdict(result), "status":result.status} for result in results], indent=2),
         encoding="utf-8",
     )
