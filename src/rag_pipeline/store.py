@@ -15,8 +15,9 @@ from typing import Any
 import chromadb
 
 from rag_pipeline.config import AppConfig
-from rag_pipeline.documents import DocumentChunk
+from rag_pipeline.documents import DocumentChunk, load_sources
 from rag_pipeline.embeddings import LocalEmbedder
+from rag_pipeline.retrieval_scope import OUTLOOK_REFERENCE, source_scope
 
 
 # One search result: a stored chunk plus how far it was from the query.
@@ -117,11 +118,26 @@ def retrieve(
     question: str,
     top_k: int = 4,
     embedder: LocalEmbedder | None = None,
+    sources: list[str] | None = None,
 ) -> list[RetrievedChunk]:
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1.")
+    scope = None
+    if sources is not None or OUTLOOK_REFERENCE.search(question):
+        scope = source_scope(question, load_sources(config.sources_path), sources)
     # Same model as indexing — crucial, because two vectors are only comparable
     # if the same model produced them (same coordinate space).
     embedder = embedder or LocalEmbedder(config.embedding_model)
     collection = get_collection(config)
+
+    query_options: dict[str, Any] = {}
+    if scope:
+        where = {"source": {"$in": scope}}
+        eligible = collection.get(where=where, limit=top_k, include=[])["ids"]
+        if not eligible:
+            return []
+        top_k = min(top_k, len(eligible))
+        query_options["where"] = where
 
     # Embed the question. `embed` takes a list and returns a list, so we pass
     # [question] and take element [0].
@@ -132,6 +148,7 @@ def retrieve(
         query_embeddings=[query_embedding],
         n_results=top_k,
         include=["documents", "metadatas", "distances"],
+        **query_options,
     )
 
     # Chroma returns lists-of-lists (one inner list per query). We sent one

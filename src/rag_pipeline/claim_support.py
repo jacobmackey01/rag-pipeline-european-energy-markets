@@ -43,6 +43,8 @@ def split_claim_units(answer: str) -> list[str]:
         return f"\x00{len(sources) - 1}\x00"
 
     masked = PDF_PATTERN.sub(mask, answer.strip())
+    # A page annotation such as "p. 3" belongs to its citation, not a new claim.
+    masked = re.sub(r"\b(pp?)\.(?=\s*\d)", lambda m: m.group(1) + "\x01", masked)
     units: list[str] = []
     pending: list[str] = []
     for line in masked.splitlines():
@@ -51,6 +53,7 @@ def split_claim_units(answer: str) -> list[str]:
         for part in re.split(r"(?<=[.!?])\s+", line):
             for index, source in enumerate(sources):
                 part = part.replace(f"\x00{index}\x00", source)
+            part = part.replace("\x01", ".")
             part = part.strip()
             if not part:
                 continue

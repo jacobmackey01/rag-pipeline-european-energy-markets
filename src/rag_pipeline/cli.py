@@ -56,11 +56,13 @@ def main() -> None:
     retrieve_parser = subparsers.add_parser("retrieve", help="Show top-k retrieved chunks.")
     retrieve_parser.add_argument("question")
     retrieve_parser.add_argument("--top-k", type=int, default=4)
+    retrieve_parser.add_argument("--source", action="append", help="Search only this manifest PDF filename; repeat for multiple sources.")
 
     # `ask` — the full RAG flow: retrieve + generate + citation check.
     ask_parser = subparsers.add_parser("ask", help="Ask a grounded question.")
     ask_parser.add_argument("question")
     ask_parser.add_argument("--top-k", type=int, default=4)
+    ask_parser.add_argument("--source", action="append", help="Search only this manifest PDF filename; repeat for multiple sources.")
     # Also print the retrieved chunks alongside the answer.
     ask_parser.add_argument("--show-chunks", action="store_true")
     # Emit machine-readable JSON instead of plain text.
@@ -119,13 +121,13 @@ def main() -> None:
 
     # retrieve: print the top-k chunks for inspection.
     if args.command == "retrieve":
-        chunks = retrieve(config, args.question, top_k=args.top_k)
+        chunks = retrieve(config, args.question, top_k=args.top_k, sources=args.source)
         _print_chunks(chunks)
         return
 
     # ask: run full RAG and print the answer (and optionally the chunks / JSON).
     if args.command == "ask":
-        result = ask_question(config, args.question, top_k=args.top_k)
+        result = ask_question(config, args.question, top_k=args.top_k, sources=args.source)
         # JSON mode: serialise everything, converting chunk dataclasses to dicts.
         if args.json:
             serializable = {

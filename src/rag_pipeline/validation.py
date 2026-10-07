@@ -32,6 +32,7 @@ class ValidationCase:
     must_refuse: bool = False
     # False to skip the (paid) LLM call and only check retrieval.
     generate_answer: bool = True
+    allowed_sources: tuple[str, ...] = ()
 
 
 # The structured outcome of running one case (this is what gets saved to JSON).
@@ -84,6 +85,7 @@ VALIDATION_CASES = (
         question="What does ENTSO-E say in the Winter Outlook 2025-2026 about European adequacy?",
         expected_sources=("entsoe-winter-outlook-2025-2026.pdf",),
         generate_answer=False,
+        allowed_sources=("entsoe-winter-outlook-2025-2026.pdf",),
     ),
 )
 
@@ -123,6 +125,10 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
         # Check #1 (always): did the expected source(s) get retrieved?
         retrieval_ok = _source_check(chunks, case.expected_sources)
         checks: dict[str, bool] = {"retrieval_expected_source": retrieval_ok}
+        if case.allowed_sources:
+            checks["retrieval_source_scope"] = bool(chunks) and all(
+                chunk.source in case.allowed_sources for chunk in chunks
+            )
 
         # Default answer text.
         answer = ""

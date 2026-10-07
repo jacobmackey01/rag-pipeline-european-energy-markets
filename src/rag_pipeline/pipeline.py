@@ -32,11 +32,13 @@ def build_index(config: AppConfig, reset: bool = False) -> int:
 
 
 # ANSWERING flow: retrieve relevant chunks, then generate a grounded answer.
-def ask_question(config: AppConfig, question: str, top_k: int = 4) -> dict[str, object]:
+def ask_question(
+    config: AppConfig, question: str, top_k: int = 4, sources: list[str] | None = None,
+) -> dict[str, object]:
     # Build the embedder once and pass it to retrieve (so the model loads once).
     embedder = LocalEmbedder(config.embedding_model)
     # Retrieve the top-k most relevant chunks for the question.
-    chunks = retrieve(config, question, top_k=top_k, embedder=embedder)
+    chunks = retrieve(config, question, top_k=top_k, embedder=embedder, sources=sources)
     # Generate an answer grounded in those chunks (or a refusal).
     result = answer_from_context(config, question, chunks)
     # Attach the retrieved chunks to the result so the CLI can show its sources.

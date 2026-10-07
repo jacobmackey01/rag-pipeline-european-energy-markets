@@ -23,6 +23,7 @@ The PDFs are downloaded from the source URLs in `data/sources.json`. Each source
 - **Embeddings:** `sentence-transformers/all-MiniLM-L6-v2`, run locally. Embeddings map semantically similar text close together, so a query can match related wording even without exact keyword overlap.
 - **Chunking:** default 220 MiniLM tokenizer tokens with 40-token overlap. Chunks are built from the tokenizer's offset mappings, so they preserve the original PDF text instead of rebuilding it; figures such as `5.25%` and `2025-2026` are not mangled. Chunking runs over the whole PDF text, not page-by-page, and metadata records the page range each chunk spans.
 - **Vector store:** ChromaDB with cosine distance and persistent local storage in `data/chroma`.
+- **Document scope:** queries that name a dated seasonal report, such as `Winter Outlook 2025-2026`, search only matching manifest PDFs before ranking passages. General questions retain cross-document search. Use `--source` to select a manifest filename explicitly.
 - **Generation:** OpenAI Responses API. The default model is `gpt-5.6-luna`, with reasoning effort explicitly set to `low` for this short grounded-answer task. Override the model with `OPENAI_MODEL`. The request omits `temperature` because GPT-5.6 models do not support that parameter; repeatability is measured through the validation suite instead.
 - **Anti-hallucination:** the prompt says to answer only from retrieved context, cite source filenames, and return exactly `Not found in the provided documents.` when the context does not contain the answer.
 - **Validation:** the CLI includes grounding, refusal, retrieval-quality, and citation-filename checks. SHA-256 verification of pinned source documents runs separately during download and ingestion.
@@ -73,6 +74,14 @@ Inspect retrieval without generation:
 rag-pipeline retrieve "What does ACER say about cross-zonal capacity in Southeast Europe?"
 ```
 
+Search a specific report when the question does not name its dated title:
+
+```powershell
+rag-pipeline ask "What are the adequacy risks?" --source entsoe-winter-outlook-2025-2026.pdf --show-chunks
+```
+
+`ask` and `retrieve` accept repeated `--source` options for comparisons. Explicit filenames override automatic title matching. Dated seasonal titles accept hyphens, en/em dashes, nonbreaking hyphens, and slash-separated years. An unknown edition or filename is rejected; a matching report with no indexed chunks returns no context instead of substituting another document. The filter uses Chroma's [metadata filtering](https://docs.trychroma.com/docs/querying-collections/metadata-filtering).
+
 Run validation:
 
 ```powershell
@@ -104,7 +113,7 @@ Validation cases:
 - `grounding_acer_2026_market_developments`: retrieves `acer-gas-electricity-key-developments-2026.pdf` and checks for specific market-monitoring details such as LNG, Russian gas imports, and network-code work.
 - `grounding_acer_see_cross_zonal_capacity`: retrieves `acer-see-cross-zonal-capacity-flexibility-2026.pdf` and checks for specific detail on price spikes, Greece-Italy HVDC capacity, and cross-zonal capacity.
 - `refusal_plausible_absent_poland_peak_demand`: asks an on-topic but absent question about Poland's projected Winter 2025-2026 peak electricity demand in GW and requires the exact refusal string.
-- `retrieval_quality_entsoe_winter_outlook`: checks that the expected Winter Outlook PDF appears in the top-k chunks. A related Summer Outlook chunk can rank highly because that report also discusses preparation for winter 2025-2026, which is a useful retrieval-quality nuance to know.
+- `retrieval_quality_entsoe_winter_outlook`: requires nonempty retrieval from the named Winter Outlook edition and checks that every returned chunk comes from that report. The earlier unrestricted search returned only Summer Outlook passages; document scoping prevents that substitution.
 
 Detailed local validation output is written to `validation/results.json`, which is ignored by Git.
 

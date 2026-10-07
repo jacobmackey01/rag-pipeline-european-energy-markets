@@ -53,6 +53,12 @@ def test_source_annotation_covers_preceding_sentences_and_bullets():
         "ACER plans monitoring. Work includes: LNG Network codes Dates are indicative. **Source: energy.pdf**"]
 
 
+@pytest.mark.parametrize("page", ["p. 3", "pp. 3–4"])
+def test_page_annotation_stays_with_its_citation(page):
+    answer = f"Adequacy is favourable. (Source: **energy.pdf**, {page})"
+    assert split_claim_units(answer) == [answer]
+
+
 def test_shared_citation_keeps_all_assertions_for_assessment(config):
     requests = []
     result = assess_claim_support(config, "Capacity was 1000 MW. It has since doubled. **(energy.pdf)**",
