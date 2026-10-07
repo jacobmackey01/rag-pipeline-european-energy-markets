@@ -13,6 +13,7 @@ data/raw/*
 !data/raw/.gitkeep
 data/chroma/
 validation/*.json
+validation/labels/
 
 .tools/
 uv.zip

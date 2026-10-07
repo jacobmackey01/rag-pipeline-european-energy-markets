@@ -33,6 +33,7 @@ from pypdf import PdfReader
 # Our own chunking helpers and the config object.
 from rag_pipeline.chunking import TextChunk, chunk_text, chunk_text_with_tokenizer
 from rag_pipeline.config import AppConfig
+from rag_pipeline.embedding_context import passage_token_budget
 
 
 # One entry from data/sources.json: a source PDF we intend to ingest.
@@ -279,6 +280,9 @@ def extract_chunks_from_pdf(
     # If the PDF had no extractable text, return an empty list.
     if not full_text:
         return chunks
+
+    if tokenizer is not None:
+        chunk_tokens = passage_token_budget(source.title, tokenizer, chunk_tokens)
 
     # Chunk the combined text, then enrich each chunk with metadata.
     for local_chunk in _chunk_document_text(

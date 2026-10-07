@@ -81,6 +81,14 @@ class AppConfig:
     chunk_tokens: int
     # How many tokens consecutive chunks share (overlap).
     overlap_tokens: int
+    claim_support_enabled: bool = False
+    decisions_model: str = "gpt-6-luna"
+    support_threshold: float = 0.8
+    unsupported_threshold: float = 0.2
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.unsupported_threshold < self.support_threshold <= 1:
+            raise ValueError("Support thresholds must satisfy 0 <= low < high <= 1.")
 
     # A "factory" constructor: build an AppConfig from environment variables,
     # with sensible defaults baked in. `@classmethod` means it's called on the
@@ -116,4 +124,8 @@ class AppConfig:
             # Chunk size and overlap, converted from env strings to integers.
             chunk_tokens=int(os.getenv("CHUNK_TOKENS", "220")),
             overlap_tokens=int(os.getenv("OVERLAP_TOKENS", "40")),
+            claim_support_enabled=os.getenv("RAG_CHECK_SUPPORT", "false").lower() in {"1", "true", "yes"},
+            decisions_model=os.getenv("OPENAI_DECISIONS_MODEL", "gpt-6-luna"),
+            support_threshold=float(os.getenv("RAG_SUPPORT_THRESHOLD", "0.8")),
+            unsupported_threshold=float(os.getenv("RAG_UNSUPPORTED_THRESHOLD", "0.2")),
         )

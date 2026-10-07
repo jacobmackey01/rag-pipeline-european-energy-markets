@@ -15,8 +15,11 @@ from typing import Any
 import chromadb
 
 from rag_pipeline.config import AppConfig
-from rag_pipeline.documents import DocumentChunk
+from rag_pipeline.documents import DocumentChunk, load_sources
 from rag_pipeline.embeddings import LocalEmbedder
+from rag_pipeline.embedding_context import CONTEXT_VERSION, contextual_text
+from rag_pipeline.hybrid import rank_records
+from rag_pipeline.retrieval_scope import MissingReportError, OUTLOOK_REFERENCE, source_scope
 
 
 # One search result: a stored chunk plus how far it was from the query.
@@ -30,8 +33,9 @@ class RetrievedChunk:
     chunk_index: int
     page_start: int
     page_end: int
-    # Cosine DISTANCE from the query (lower = more similar). Chroma returns this.
+    # Cosine distance; the combined retrieval score determines final ranking.
     distance: float
+    retrieval_score: float | None = None
 
     # A short human-readable label like "report.pdf, page 18, chunk 45", shown in
     # CLI previews so you can eyeball where a chunk came from.
@@ -56,7 +60,7 @@ def get_collection(config: AppConfig):
     # the right metric for normalised text embeddings.
     return client.get_or_create_collection(
         name=config.collection_name,
-        metadata={"hnsw:space": "cosine"},
+        metadata={"hnsw:space": "cosine", "embedding_context_version": CONTEXT_VERSION},
     )
 
 
@@ -82,6 +86,8 @@ def index_chunks(
     embedder = embedder or LocalEmbedder(config.embedding_model)
     # Open the collection to write into.
     collection = get_collection(config)
+    if collection.count() and (collection.metadata or {}).get("embedding_context_version") != CONTEXT_VERSION:
+        raise RuntimeError("Index uses passage-only embeddings. Run `rag-pipeline ingest --reset`.")
 
     # Process chunks in batches of 64 (memory-friendly, and one embed call per
     # batch instead of one per chunk).
@@ -89,7 +95,7 @@ def index_chunks(
         # Slice out this batch.
         batch = chunks[start : start + batch_size]
         # Embed all chunk texts in the batch at once.
-        embeddings = embedder.embed([chunk.text for chunk in batch])
+        embeddings = embedder.embed([contextual_text(chunk.title, chunk.text) for chunk in batch])
         # `upsert` = insert-or-update by id. Because ids are stable, re-running
         # ingestion overwrites existing rows instead of creating duplicates.
         collection.upsert(
@@ -111,42 +117,46 @@ def _metadata_value(metadata: dict[str, Any], key: str, default: str | int) -> A
     return default if value is None else value
 
 
-# The RETRIEVAL step: embed the question and fetch the top-k most similar chunks.
+# Retrieve the top-k passages by contextual semantic and lexical ranking.
 def retrieve(
     config: AppConfig,
     question: str,
     top_k: int = 4,
     embedder: LocalEmbedder | None = None,
+    sources: list[str] | None = None,
+    infer_scope: bool = True,
 ) -> list[RetrievedChunk]:
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1.")
+    scope = None
+    if sources is not None or (infer_scope and OUTLOOK_REFERENCE.search(question)):
+        try:
+            scope = source_scope(question, load_sources(config.sources_path), sources)
+        except MissingReportError:
+            return []
     # Same model as indexing — crucial, because two vectors are only comparable
     # if the same model produced them (same coordinate space).
     embedder = embedder or LocalEmbedder(config.embedding_model)
     collection = get_collection(config)
 
-    # Embed the question. `embed` takes a list and returns a list, so we pass
-    # [question] and take element [0].
-    query_embedding = embedder.embed([question])[0]
-    # Ask Chroma for the top_k nearest stored vectors, requesting the text,
-    # metadata, and distances back.
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=top_k,
-        include=["documents", "metadatas", "distances"],
-    )
+    if collection.count() and (collection.metadata or {}).get("embedding_context_version") != CONTEXT_VERSION:
+        raise RuntimeError("Index uses passage-only embeddings. Run `rag-pipeline ingest --reset`.")
 
-    # Chroma returns lists-of-lists (one inner list per query). We sent one
-    # query, so we take element [0] of each. `.get(..., [[]])` guards missing keys.
-    ids = results.get("ids", [[]])[0]
-    documents = results.get("documents", [[]])[0]
-    metadatas = results.get("metadatas", [[]])[0]
-    distances = results.get("distances", [[]])[0]
+    read_options: dict[str, Any] = {}
+    if scope:
+        read_options["where"] = {"source": {"$in": scope}}
+    records = collection.get(include=["documents", "metadatas", "embeddings"], **read_options)
+    if not records["ids"]:
+        return []
+    query_vector = embedder.embed([question])[0]
+    ranked = rank_records(question, query_vector, records)[:top_k]
 
     # Build typed RetrievedChunk objects from the parallel result lists.
     retrieved: list[RetrievedChunk] = []
-    # `zip` walks all four lists together, one result at a time.
-    for chunk_id, text, metadata, distance in zip(ids, documents, metadatas, distances):
-        # Guard against a None metadata dict.
-        metadata = metadata or {}
+    for index, distance, score in ranked:
+        chunk_id = records["ids"][index]
+        text = records["documents"][index]
+        metadata = records["metadatas"][index] or {}
         retrieved.append(
             RetrievedChunk(
                 id=chunk_id,
@@ -160,6 +170,7 @@ def retrieve(
                 page_end=int(_metadata_value(metadata, "page_end", -1)),
                 # The cosine distance for this result.
                 distance=float(distance),
+                retrieval_score=score,
             )
         )
     # Return the ranked list (closest first).

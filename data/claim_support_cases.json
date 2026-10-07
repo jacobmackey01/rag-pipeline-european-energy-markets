@@ -1,0 +1,140 @@
+{
+  "label_status": "Provisional author-labelled diagnostic examples; not independent labels or a held-out benchmark. Thresholds were fixed before the live run.",
+  "source_sha256": "240745eed7475d19af5710be12da1c9eb4eff77b8ea9c7f8396da09d4e6006f8",
+  "evidence": {
+    "prices": {
+      "id": "prices",
+      "text": "During the summer of 2024, most bidding zones in Southeast Europe saw a significant increase in electricity prices, particularly during the evening hours, reaching values of up to 1000 EUR/MWh. During these high-price events, price spreads at several bidding zone borders in Central Europe rose to unprecedented levels, signalling insufficient availability of cross-zonal capacity to accommodate all the market\u2019s need for cross-zonal exchanges. This is summarised in Figure 1.",
+      "source": "acer-see-cross-zonal-capacity-flexibility-2026.pdf",
+      "title": "ACER Increasing Cross-Zonal Capacity and System Flexibility in Southeast Europe 2026",
+      "source_url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/ACER-Monitoring-Report-Increasing-SEE-cross-zonal-capacity-and-flexibility-2026.pdf",
+      "chunk_index": 0,
+      "page_start": 9,
+      "page_end": 9,
+      "distance": 0.0
+    },
+    "capacity": {
+      "id": "capacity",
+      "text": "In the EU, the main regulatory tool to ensure the maximisation of cross-zonal capacities is the 70% requirement, introduced in the Electricity Regulation. It requires TSOs to offer at least 70% of their physical capacity on all relevant lines for cross-zonal trade, while complying wi th safety standards of secure network operation. This requirement was introduced to address the discrimination of cross-zonal exchanges in favour of intra-zonal exchanges, inherent to a zonal market design.",
+      "source": "acer-see-cross-zonal-capacity-flexibility-2026.pdf",
+      "title": "ACER Increasing Cross-Zonal Capacity and System Flexibility in Southeast Europe 2026",
+      "source_url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/ACER-Monitoring-Report-Increasing-SEE-cross-zonal-capacity-and-flexibility-2026.pdf",
+      "chunk_index": 0,
+      "page_start": 26,
+      "page_end": 26,
+      "distance": 0.0
+    },
+    "proposals": {
+      "id": "proposals",
+      "text": "This second section sets out several targeted measures aimed at improving the operational processes and network infrastructure that affect cross-zonal trade within Southeast Europe, as well as between Southeast Europe and the rest of the EU. If implemented, these measures could increase cross-zonal capacity in the short to medium term and improve the ability of imports from the rest of the EU to alleviate prices in Southeast Europe.",
+      "source": "acer-see-cross-zonal-capacity-flexibility-2026.pdf",
+      "title": "ACER Increasing Cross-Zonal Capacity and System Flexibility in Southeast Europe 2026",
+      "source_url": "https://www.acer.europa.eu/sites/default/files/documents/Publications/ACER-Monitoring-Report-Increasing-SEE-cross-zonal-capacity-and-flexibility-2026.pdf",
+      "chunk_index": 0,
+      "page_start": 18,
+      "page_end": 18,
+      "distance": 0.0
+    }
+  },
+  "cases": [
+    {
+      "name": "supported_price",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Southeast European electricity prices reached up to 1000 EUR/MWh during summer 2024 (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": true,
+      "label_reason": "Direct numerical and temporal support."
+    },
+    {
+      "name": "wrong_price",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Southeast European electricity prices reached 2000 EUR/MWh during summer 2024 (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "Passage says up to 1000, not 2000."
+    },
+    {
+      "name": "wrong_year",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Southeast European electricity prices reached up to 1000 EUR/MWh during summer 2025 (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "The described period is summer 2024."
+    },
+    {
+      "name": "wrong_unit",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Southeast European electricity prices reached up to 1000 EUR/kWh during summer 2024 (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "Unit is EUR/MWh, not EUR/kWh."
+    },
+    {
+      "name": "wrong_region",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Norwegian electricity prices reached up to 1000 EUR/MWh during summer 2024 (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "Evidence concerns Southeast European bidding zones."
+    },
+    {
+      "name": "supported_requirement",
+      "evidence_ids": [
+        "capacity"
+      ],
+      "answer": "The requirement described by ACER is at least 70% of physical capacity for cross-zonal trade, subject to secure operation (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": true,
+      "label_reason": "Both threshold and security qualification appear explicitly."
+    },
+    {
+      "name": "wrong_requirement",
+      "evidence_ids": [
+        "capacity"
+      ],
+      "answer": "The requirement described by ACER is at least 90% of physical capacity for cross-zonal trade (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "Passage gives 70%, not 90%."
+    },
+    {
+      "name": "unsupported_compound",
+      "evidence_ids": [
+        "capacity"
+      ],
+      "answer": "The requirement is 70% and every EU TSO has already met it (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "The second assertion is absent; all parts must be supported."
+    },
+    {
+      "name": "supported_conditional",
+      "evidence_ids": [
+        "proposals"
+      ],
+      "answer": "If implemented, the proposed measures could increase cross-zonal capacity in the short to medium term (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": true,
+      "label_reason": "Preserves the conditional nature of the proposals."
+    },
+    {
+      "name": "proposal_as_outcome",
+      "evidence_ids": [
+        "proposals"
+      ],
+      "answer": "The proposed measures have already increased cross-zonal capacity and eliminated price spikes (acer-see-cross-zonal-capacity-flexibility-2026.pdf).",
+      "expected_supported": false,
+      "label_reason": "A proposal and possible future benefits do not prove delivery or elimination."
+    },
+    {
+      "name": "uncited_claim",
+      "evidence_ids": [
+        "prices"
+      ],
+      "answer": "Southeast European electricity prices reached up to 1000 EUR/MWh during summer 2024.",
+      "expected_supported": false,
+      "label_reason": "No citation associates this claim with its evidence."
+    }
+  ]
+}
