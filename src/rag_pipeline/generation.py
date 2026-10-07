@@ -14,6 +14,7 @@ import os
 from openai import OpenAI
 
 from rag_pipeline.config import AppConfig, REFUSAL_MESSAGE
+from rag_pipeline.claim_support import assess_claim_support, skipped_support
 from rag_pipeline.grounding import GROUNDING_INSTRUCTION, build_grounded_prompt, citation_check
 from rag_pipeline.store import RetrievedChunk
 
@@ -32,6 +33,7 @@ def answer_from_context(
             "answer": REFUSAL_MESSAGE,
             "citation_check": True,
             "citation_check_message": "No context was retrieved.",
+            "claim_support": skipped_support("not_applicable" if config.claim_support_enabled else "disabled"),
         }
 
     # Fail clearly if the API key isn't configured, instead of getting a cryptic
@@ -64,4 +66,6 @@ def answer_from_context(
         "answer": answer,
         "citation_check": passed,
         "citation_check_message": message,
+        "claim_support": assess_claim_support(config, answer, chunks, client=client)
+        if config.claim_support_enabled else skipped_support("disabled"),
     }

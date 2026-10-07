@@ -12,12 +12,13 @@ from __future__ import annotations
 import argparse
 import json
 # `asdict` converts a dataclass instance into a plain dict (for JSON output).
-from dataclasses import asdict
+from dataclasses import asdict, replace
 
 from rag_pipeline.config import AppConfig
 from rag_pipeline.documents import download_sources
 from rag_pipeline.pipeline import ask_question, build_index
 from rag_pipeline.store import retrieve
+from rag_pipeline.support_evaluation import evaluate_support
 from rag_pipeline.validation import run_validation, write_validation_results
 
 
@@ -64,21 +65,42 @@ def main() -> None:
     ask_parser.add_argument("--show-chunks", action="store_true")
     # Emit machine-readable JSON instead of plain text.
     ask_parser.add_argument("--json", action="store_true")
+    ask_parser.add_argument("--check-support", action=argparse.BooleanOptionalAction,
+                            default=None, help="Assess claims against cited passages using Decisions.")
 
     # `validate` — run the anti-hallucination test suite.
     validate_parser = subparsers.add_parser("validate", help="Run grounding/refusal validation.")
     validate_parser.add_argument("--top-k", type=int, default=4)
+    validate_parser.add_argument("--check-support", action=argparse.BooleanOptionalAction,
+                                 default=None, help="Include Decisions claim-support checks.")
     # Where to write the detailed JSON results.
     validate_parser.add_argument(
         "--output",
         default="validation/results.json",
         help="Where to write detailed validation JSON.",
     )
+    support_parser = subparsers.add_parser("evaluate-support", help="Compare support checks on fixed energy examples (calls Decisions).")
+    support_parser.add_argument("--cases", default="data/claim_support_cases.json")
+    support_parser.add_argument("--output", default="validation/claim-support-results.json")
 
     # Parse whatever the user typed into an `args` object.
     args = parser.parse_args()
     # Build the configuration (loads .env files, reads env vars).
     config = AppConfig.from_env()
+    if getattr(args, "check_support", None) is not None:
+        config = replace(config, claim_support_enabled=args.check_support)
+
+    if args.command == "evaluate-support":
+        report = evaluate_support(config, config.root_dir / args.cases)
+        output = config.root_dir / args.output
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        print(json.dumps(report["summary"], indent=2))
+        print(report["label_status"])
+        summary = report["summary"]
+        if summary["unavailable_cases"] or summary["augmented"]["unsupported_accepted"] or summary["augmented"]["supported_flagged"]:
+            raise SystemExit(1)
+        return
 
     # --- Dispatch to the chosen command ---
 
@@ -110,6 +132,7 @@ def main() -> None:
                 "answer": result["answer"],
                 "citation_check": result["citation_check"],
                 "citation_check_message": result["citation_check_message"],
+                "claim_support": result["claim_support"],
                 "retrieved_chunks": [asdict(chunk) for chunk in result["retrieved_chunks"]],
             }
             print(json.dumps(serializable, indent=2))
@@ -117,6 +140,11 @@ def main() -> None:
         # Plain mode: print the answer, then the citation-check summary line.
         print(result["answer"])
         print(f"\nCitation check: {result['citation_check_message']}")
+        support = result["claim_support"]
+        if support["status"] != "disabled":
+            print(f"Claim support: {support['status']}; needs review: {support['needs_review']}")
+            for claim in support["claims"]:
+                print(f"  - {claim['status']} ({claim['probability']}): {claim['text']}")
         # Optionally also print the supporting chunks.
         if args.show_chunks:
             _print_chunks(result["retrieved_chunks"])

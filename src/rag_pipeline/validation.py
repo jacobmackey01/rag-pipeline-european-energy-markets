@@ -9,7 +9,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from rag_pipeline.config import AppConfig, REFUSAL_MESSAGE
@@ -47,6 +47,7 @@ class ValidationResult:
     checks: dict[str, bool]
     # Any explanatory notes (e.g. why a citation check failed).
     notes: list[str]
+    claim_support: dict[str, object] = field(default_factory=dict)
 
 
 # The actual test cases. Kept small and hand-picked so each result is explainable.
@@ -125,11 +126,17 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
 
         # Default answer text.
         answer = ""
+        support: dict[str, object] = {}
         # Only call the LLM if this case wants a generated answer.
         if case.generate_answer:
             # Generate the grounded answer and its citation-integrity result.
             generated = answer_from_context(config, case.question, chunks)
             answer = str(generated["answer"])
+            support = generated["claim_support"]
+            if config.claim_support_enabled and answer.strip() != REFUSAL_MESSAGE:
+                checks["claim_support"] = support["passed"] is True
+                if not checks["claim_support"]:
+                    notes.append("Claim support needs review; see per-unit evidence and scores.")
             # Check #2: did the citation-integrity check pass?
             checks["citation_integrity"] = bool(generated["citation_check"])
             # If it failed, record the reason as a note.
@@ -160,6 +167,7 @@ def run_validation(config: AppConfig, top_k: int = 4) -> list[ValidationResult]:
                 retrieved_labels=retrieved_labels,
                 checks=checks,
                 notes=notes,
+                claim_support=support,
             )
         )
     # Return all results.
