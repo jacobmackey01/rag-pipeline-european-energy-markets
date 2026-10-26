@@ -9,6 +9,7 @@ description = "A source-cited RAG pipeline with explicit refusal validation over
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "certifi>=2026.10.19",
     "chromadb>=0.5.23",
     "openai>=1.90.0",
     "pypdf>=5.1.0",
